@@ -20,4 +20,4 @@ git clone https://github.com/sagnikghoshcr7/Credit-Card-Fraud-Detection.git
 
 3. install required python packages if previously not installed
 
-4. Finally run on Jupyter Notebook and enjoy 😉
+4. Finally run on Jupyter Notebook. And let me know if you found any bugs
