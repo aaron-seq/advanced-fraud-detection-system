@@ -23,7 +23,7 @@ fig, ax = plt.subplots(figsize=(20,10))
 corr = df.corr()
 sns.heatmap(corr, cmap="gray", annot_kws={'size':30}, ax=ax)
 ax.set_title("Imbalanced Correlation Matrix", fontsize=14)
-plt.show()
+plt.show(
 
 # Standardizing Data
 from sklearn.preprocessing import MinMaxScaler
