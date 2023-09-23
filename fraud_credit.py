@@ -35,7 +35,7 @@ X2 = df['Class'].values.reshape(-1,1)
 X = np.concatenate((X1, X2), axis=1)
 
 random_state = np.random.RandomState(42)
-outliers_fraction = 0.05
+outliers_fraction = 0.0
 
 # Running PyOD Algorithms to detect outliers
 classifiers = {
