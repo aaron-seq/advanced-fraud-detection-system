@@ -1,6 +1,6 @@
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
+import matplotlib.pyplot as 
 from pyod.models.abod import ABOD
 from pyod.models.cblof import CBLOF
 from pyod.models.feature_bagging import FeatureBagging
