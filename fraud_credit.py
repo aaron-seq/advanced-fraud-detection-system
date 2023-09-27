@@ -1,5 +1,5 @@
 import pandas as pd
-import numpy as n
+import numpy as np
 import matplotlib.pyplot as plt
 from pyod.models.abod import ABOD
 from pyod.models.cblof import CBLOF
