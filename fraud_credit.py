@@ -1,4 +1,4 @@
-import pandas as p
+import pandas as 
 import numpy as 
 import matplotlib.pyplot as plt
 from pyod.models.abod import ABOD
