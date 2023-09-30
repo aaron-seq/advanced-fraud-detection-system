@@ -74,4 +74,4 @@ These questions and a deeper understading of how the business works and how we w
 I've also uploaded this *notebook* to Kaggle, where plotly graphics are interactive. If you wish to see it, please <a href = "https://www.kaggle.com/code/lusfernandotorres/91-87-recall-with-ada-boost-cc-fraud-detection/notebook">click here</a>.
 
 # Author
-**Luís Fernando Torres**
+**Aaron Emmanuel Xavier Sequeira**
