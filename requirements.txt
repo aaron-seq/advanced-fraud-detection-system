@@ -1,0 +1,60 @@
+# Core data science libraries
+pandas==2.1.4
+numpy==1.26.2
+scikit-learn==1.4.0
+
+# Visualization
+matplotlib==3.8.2
+seaborn==0.13.0
+plotly==5.17.0
+
+# Machine Learning Enhancement
+xgboost==2.0.3
+lightgbm==4.2.0
+catboost==1.2.2
+optuna==3.5.0
+
+# Deep Learning
+tensorflow==2.15.0
+torch==2.1.2
+torchvision==0.16.2
+
+# Imbalanced learning
+imbalanced-learn==0.11.0
+
+# Explainable AI
+shap==0.44.1
+lime==0.2.0.1
+
+# Advanced techniques
+networkx==3.2.1
+scipy==1.11.4
+
+# Real-time processing
+kafka-python==2.0.2
+streamlit==1.29.0
+
+# Model monitoring
+evidently==0.4.18
+mlflow==2.9.2
+
+# Quantum ML (experimental)
+qiskit==0.45.2
+qiskit-machine-learning==0.7.2
+pennylane==0.33.1
+
+# Graph Neural Networks
+torch-geometric==2.4.0
+dgl==1.1.3
+
+# Federated Learning
+flwr==1.6.0
+
+# Ensemble methods
+stacking==0.1.0
+vecstack==0.4.0
+
+# Environment and utilities
+python-dotenv==1.0.0
+tqdm==4.66.1
+joblib==1.3.2
