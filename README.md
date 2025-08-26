@@ -6,11 +6,11 @@
 [![Federated Learning](https://img.shields.io/badge/Federated-Learning-green.svg)](https://flower.dev/)
 [![Real-time](https://img.shields.io/badge/Real--time-Streaming-red.svg)](https://kafka.apache.org/)
 
-## 🚀 Revolutionary Fraud Detection with 2025's Latest AI Technologies
+##  Revolutionary Fraud Detection with 2025's Latest AI Technologies
 
 This repository contains the world's most advanced credit card fraud detection system, implementing cutting-edge technologies from 2025 including **Quantum Machine Learning**, **Graph Neural Networks**, **Federated Learning**, and **Real-time Streaming Analytics**.
 
-### 🎯 Key Achievements
+###  Key Achievements
 - **99.98% Accuracy** with SL-SSNet Hybrid Architecture
 - **<1ms Latency** for real-time fraud detection
 - **Privacy-preserving** federated learning across institutions
@@ -64,7 +64,7 @@ This repository contains the world's most advanced credit card fraud detection s
 | **Stacking Ensemble** | **99.96%** | 99.53% | 100% | 99.0% | Optimized |
 | **Transformer GNN** | **+20% AP** | High | High | Superior | **<1ms** |
 
-## 🏗️ Repository Structure
+## Repository Structure
 
 ```
 CreditCardFraudDetection/
@@ -114,7 +114,7 @@ CreditCardFraudDetection/
 └── 📄 README.md                        # This file
 ```
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
 - Python 3.9+
@@ -157,7 +157,7 @@ docker-compose up --build
 docker-compose -f docker-compose.prod.yml up -d
 ```
 
-## 💡 Usage Examples
+## Usage Examples
 
 ### 1. **Advanced Ensemble Fraud Detection**
 ```python
@@ -285,7 +285,7 @@ quantum_proba = quantum_detector.predict_proba(X_test)
 print(f"Quantum Model AUC: {roc_auc_score(y_test, quantum_proba):.4f}")
 ```
 
-## 🔒 Privacy & Security Features
+## Privacy & Security Features
 
 ### Federated Learning Security
 - **Multi-institutional collaboration** without raw data sharing
@@ -300,7 +300,7 @@ print(f"Quantum Model AUC: {roc_auc_score(y_test, quantum_proba):.4f}")
 - **Post-quantum cryptography** implementation
 - **Quantum random number generation** for enhanced security
 
-## 🌐 Deployment Options
+## Deployment Options
 
 ### 1. **Cloud-Native Kubernetes**
 ```yaml
@@ -415,7 +415,7 @@ services:
 - **Cross-institutional intelligence** sharing via federated learning
 - **Explainable AI** for regulatory compliance and audit trails
 
-## 🧪 Experimental Features
+## Experimental Features
 
 ### Cutting-Edge Research Integration
 - **Neuromorphic computing** with spiking neural networks
@@ -429,7 +429,7 @@ services:
 - **Automated architecture search** with neural architecture search
 - **Transfer learning** across different financial domains
 
-## 📚 Research & Publications
+## Research & Publications
 
 This implementation incorporates findings from cutting-edge 2025 research:
 
@@ -459,17 +459,17 @@ mypy src/
 ```
 
 ### Areas for Contribution
-- 🧠 **New ML architectures** and algorithms
-- ⚡ **Performance optimizations** and speedups
-- 🔒 **Security enhancements** and privacy features
-- 📚 **Documentation** and tutorials
-- 🐛 **Bug fixes** and testing improvements
+-  **New ML architectures** and algorithms
+-  **Performance optimizations** and speedups
+-  **Security enhancements** and privacy features
+-  **Documentation** and tutorials
+-  **Bug fixes** and testing improvements
 
 ## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🙏 Acknowledgments
+## Acknowledgments
 
 - **IBM Quantum Network** for quantum computing resources
 - **NVIDIA** for GNN acceleration and GPU support
@@ -484,12 +484,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **LinkedIn**: [Aaron Emmanuel Xavier Sequeira](https://linkedin.com/in/aaron-sequeira)
 - **GitHub Issues**: [Report Issues](https://github.com/aaronseq12/CreditCardFraudDetection/issues)
 - **Discussions**: [Community Discussions](https://github.com/aaronseq12/CreditCardFraudDetection/discussions)
-
-## 🌟 Star History
-
-[![Star History Chart](https://api.star-history.com/svg?repos=aaronseq12/CreditCardFraudDetection&type=Date)](https://star-history.com/#aaronseq12/CreditCardFraudDetection&Date)
-
----
 
 **⚡ Powered by 2025's most advanced AI technologies for next-generation fraud detection**
 
