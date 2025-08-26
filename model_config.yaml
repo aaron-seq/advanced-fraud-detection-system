@@ -1,0 +1,329 @@
+# Model Configuration
+model:
+  # Ensemble Methods
+  ensemble:
+    methods: ['xgb', 'lgb', 'catboost', 'rf']
+    use_stacking: true
+    stacking_meta_learner: 'logistic_regression'
+    voting_type: 'soft'
+    
+  # XGBoost Parameters
+  xgboost:
+    objective: 'binary:logistic'
+    max_depth: 6
+    learning_rate: 0.1
+    n_estimators: 500
+    min_child_weight: 1
+    gamma: 0
+    subsample: 0.8
+    colsample_bytree: 0.8
+    reg_alpha: 0.1
+    reg_lambda: 1
+    random_state: 42
+    
+  # LightGBM Parameters
+  lightgbm:
+    objective: 'binary'
+    boosting_type: 'gbdt'
+    num_leaves: 31
+    learning_rate: 0.1
+    feature_fraction: 0.9
+    bagging_fraction: 0.8
+    bagging_freq: 5
+    verbose: -1
+    random_state: 42
+    
+  # CatBoost Parameters
+  catboost:
+    iterations: 500
+    learning_rate: 0.1
+    depth: 6
+    l2_leaf_reg: 3
+    border_count: 254
+    random_seed: 42
+    verbose: false
+    
+  # Random Forest Parameters
+  random_forest:
+    n_estimators: 500
+    max_depth: 10
+    min_samples_split: 5
+    min_samples_leaf: 2
+    max_features: 'sqrt'
+    bootstrap: true
+    random_state: 42
+
+# Advanced Features
+advanced:
+  # Quantum Machine Learning
+  quantum:
+    enabled: false  # Set to true if quantum hardware available
+    n_qubits: 8
+    n_layers: 3
+    quantum_device: 'default.qubit'
+    optimizer: 'adam'
+    learning_rate: 0.01
+    max_iterations: 200
+    use_hybrid: true
+    
+  # Graph Neural Networks
+  gnn:
+    enabled: true
+    model_type: 'GAT'  # GCN, GAT, or SAGE
+    hidden_dim: 64
+    num_layers: 3
+    dropout: 0.3
+    learning_rate: 0.001
+    weight_decay: 0.0005
+    epochs: 200
+    batch_size: 32
+    patience: 15
+    similarity_threshold: 0.7
+    graph_method: 'transaction_based'  # user_based, transaction_based, hybrid
+    
+  # Transformer Models
+  transformers:
+    enabled: true
+    model_architecture: 'dense'  # For tabular data
+    hidden_dims: [256, 128, 64]
+    dropout_rate: 0.3
+    learning_rate: 0.001
+    batch_size: 1024
+    epochs: 50
+    early_stopping_patience: 10
+    
+  # Federated Learning
+  federated:
+    enabled: false
+    aggregation_rounds: 10
+    local_epochs: 5
+    clients_per_round: 3
+    min_clients: 2
+    differential_privacy: true
+    noise_multiplier: 0.1
+    learning_rate: 0.001
+    batch_size: 512
+
+# Feature Engineering
+features:
+  # Time-based features
+  time_features:
+    enabled: true
+    extract_hour: true
+    extract_day: true
+    extract_cyclical: true
+    
+  # Amount-based features
+  amount_features:
+    enabled: true
+    log_transform: true
+    scaling_method: 'standard'  # standard, robust, minmax
+    
+  # Statistical features
+  statistical_features:
+    enabled: true
+    compute_mean: true
+    compute_std: true
+    compute_min_max: true
+    compute_percentiles: [25, 50, 75, 90, 95]
+    
+  # Anomaly detection features
+  anomaly_features:
+    enabled: true
+    isolation_forest: true
+    local_outlier_factor: true
+    one_class_svm: false
+
+# Data Processing
+data:
+  # Class imbalance handling
+  imbalance:
+    method: 'SMOTE'  # SMOTE, ADASYN, SMOTETomek, None
+    sampling_strategy: 'auto'
+    random_state: 42
+    
+  # Feature scaling
+  scaling:
+    method: 'robust'  # standard, robust, minmax
+    feature_range: [0, 1]  # for MinMaxScaler
+    
+  # Cross-validation
+  cross_validation:
+    method: 'stratified_kfold'
+    n_splits: 5
+    shuffle: true
+    random_state: 42
+
+# Hyperparameter Optimization
+optimization:
+  enabled: true
+  method: 'optuna'  # optuna, grid_search, random_search
+  n_trials: 100
+  timeout: 3600  # seconds
+  pruning: true
+  
+  # Optuna specific
+  sampler: 'TPESampler'
+  pruner: 'MedianPruner'
+  
+  # Objective metrics
+  objective: 'roc_auc'
+  direction: 'maximize'
+
+# Model Evaluation
+evaluation:
+  # Metrics to compute
+  metrics:
+    - 'accuracy'
+    - 'precision'
+    - 'recall'
+    - 'f1_score'
+    - 'roc_auc'
+    - 'pr_auc'
+    - 'matthews_corrcoef'
+    
+  # Test set size
+  test_size: 0.2
+  validation_size: 0.1
+  random_state: 42
+  
+  # Threshold optimization
+  threshold_optimization:
+    enabled: true
+    method: 'youden_j'  # youden_j, f1_optimal, precision_recall_curve
+    
+# Explainable AI
+explainability:
+  enabled: true
+  
+  # SHAP explanations
+  shap:
+    enabled: true
+    explainer_type: 'tree'  # tree, linear, kernel, deep
+    max_samples: 1000
+    
+  # LIME explanations
+  lime:
+    enabled: true
+    mode: 'tabular'
+    num_features: 10
+    num_samples: 5000
+    
+  # Feature importance
+  feature_importance:
+    enabled: true
+    methods: ['permutation', 'built_in']
+    
+# Real-time Processing
+streaming:
+  # Kafka configuration
+  kafka:
+    bootstrap_servers: ['localhost:9092']
+    transaction_topic: 'credit_card_transactions'
+    fraud_alert_topic: 'fraud_alerts'
+    group_id: 'fraud_detector_group'
+    auto_offset_reset: 'latest'
+    
+  # Processing configuration
+  processing:
+    batch_size: 1000
+    max_latency_ms: 100
+    enable_caching: true
+    cache_ttl: 3600  # seconds
+    
+  # Performance monitoring
+  monitoring:
+    enabled: true
+    metrics_interval: 60  # seconds
+    alert_thresholds:
+      latency_ms: 500
+      accuracy_drop: 0.05
+      fraud_rate_change: 0.5
+
+# Model Deployment
+deployment:
+  # Model serving
+  serving:
+    framework: 'fastapi'  # fastapi, flask, streamlit
+    host: '0.0.0.0'
+    port: 8080
+    workers: 4
+    
+  # Model versioning
+  versioning:
+    enabled: true
+    backend: 'mlflow'  # mlflow, dvc, weights_biases
+    experiment_name: 'fraud_detection'
+    
+  # A/B testing
+  ab_testing:
+    enabled: false
+    traffic_split: 0.1  # Percentage for new model
+    
+# Monitoring and Logging
+monitoring:
+  # Model performance monitoring
+  performance:
+    enabled: true
+    drift_detection: true
+    drift_threshold: 0.1
+    monitoring_window: '7d'
+    
+  # Data quality monitoring
+  data_quality:
+    enabled: true
+    check_missing_values: true
+    check_data_types: true
+    check_ranges: true
+    
+  # Alerting
+  alerting:
+    enabled: true
+    channels: ['email', 'slack']
+    thresholds:
+      accuracy_drop: 0.05
+      drift_score: 0.1
+      fraud_rate_anomaly: 2.0  # Standard deviations
+
+# Security and Privacy
+security:
+  # Data encryption
+  encryption:
+    enabled: true
+    algorithm: 'AES-256'
+    
+  # Access control
+  access_control:
+    enabled: true
+    authentication: 'JWT'
+    authorization: 'RBAC'
+    
+  # Privacy preservation
+  privacy:
+    differential_privacy: false  # Enable for federated learning
+    homomorphic_encryption: false
+    secure_multiparty_computation: false
+    
+# Logging Configuration
+logging:
+  level: 'INFO'  # DEBUG, INFO, WARNING, ERROR, CRITICAL
+  format: '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+  file: 'logs/fraud_detection.log'
+  max_bytes: 10485760  # 10MB
+  backup_count: 5
+  
+# Environment Configuration
+environment:
+  development:
+    debug: true
+    testing: true
+    
+  production:
+    debug: false
+    testing: false
+    performance_monitoring: true
+    
+  testing:
+    debug: true
+    testing: true
+    mock_external_services: true
