@@ -1,60 +1,51 @@
-# Core data science libraries
+# Core Framework
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+pydantic==2.5.0
+pydantic-settings==2.1.0
+
+# Database & Cache
+sqlalchemy==2.0.23
+alembic==1.13.1
+asyncpg==0.29.0
+redis==5.0.1
+databases[postgresql]==0.8.0
+
+# Machine Learning Core
 pandas==2.1.4
 numpy==1.26.2
-scikit-learn==1.4.0
+scikit-learn==1.3.2
+joblib==1.3.2
 
-# Visualization
+# ML Enhancement Libraries
+xgboost==2.0.3
+lightgbm==4.1.0
+catboost==1.2.2
+optuna==3.5.0
+imbalanced-learn==0.11.0
+
+# Deep Learning (Lightweight)
+torch==2.1.2+cpu --index-url https://download.pytorch.org/whl/cpu
+torchvision==0.16.2+cpu --index-url https://download.pytorch.org/whl/cpu
+
+# Visualization & Monitoring
 matplotlib==3.8.2
 seaborn==0.13.0
 plotly==5.17.0
-
-# Machine Learning Enhancement
-xgboost==2.0.3
-lightgbm==4.2.0
-catboost==1.2.2
-optuna==3.5.0
-
-# Deep Learning
-tensorflow==2.15.0
-torch==2.1.2
-torchvision==0.16.2
-
-# Imbalanced learning
-imbalanced-learn==0.11.0
+streamlit==1.28.2
 
 # Explainable AI
 shap==0.44.1
 lime==0.2.0.1
 
-# Advanced techniques
-networkx==3.2.1
-scipy==1.11.4
+# API & Security
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+python-multipart==0.0.6
+httpx==0.25.2
 
-# Real-time processing
-kafka-python==2.0.2
-streamlit==1.29.0
-
-# Model monitoring
-evidently==0.4.18
-mlflow==2.9.2
-
-# Quantum ML (experimental)
-qiskit==0.45.2
-qiskit-machine-learning==0.7.2
-pennylane==0.33.1
-
-# Graph Neural Networks
-torch-geometric==2.4.0
-dgl==1.1.3
-
-# Federated Learning
-flwr==1.6.0
-
-# Ensemble methods
-stacking==0.1.0
-vecstack==0.4.0
-
-# Environment and utilities
+# Utilities
 python-dotenv==1.0.0
 tqdm==4.66.1
-joblib==1.3.2
+pytest==7.4.3
+pytest-asyncio==0.21.1
