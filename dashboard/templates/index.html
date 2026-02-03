@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Fraud Detection Dashboard | Real-time Monitoring</title>
+    <meta
+      name="description"
+      content="Real-time fraud detection monitoring dashboard with advanced analytics and ML model performance tracking"
+    />
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/static/css/dashboard.css" />
+  </head>
+  <body>
+    <div class="dashboard">
+      <!-- Sidebar -->
+      <aside class="sidebar">
+        <div class="logo">
+          <div class="logo-icon">🛡️</div>
+          <span class="logo-text">FraudGuard</span>
+        </div>
+
+        <ul class="nav-menu">
+          <li class="nav-item">
+            <a href="#" class="nav-link active">
+              <span class="nav-icon">📊</span>
+              Dashboard
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="#" class="nav-link">
+              <span class="nav-icon">📈</span>
+              Analytics
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="#" class="nav-link">
+              <span class="nav-icon">🔬</span>
+              Models
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="#" class="nav-link">
+              <span class="nav-icon">🌍</span>
+              Geographic
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="#" class="nav-link">
+              <span class="nav-icon">⚙️</span>
+              Settings
+            </a>
+          </li>
+        </ul>
+
+        <div
+          class="sidebar-footer"
+          style="
+            margin-top: auto;
+            padding-top: 1rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+          "
+        >
+          <div style="font-size: 0.75rem; color: var(--text-muted)">
+            v2.9.0 | Last updated
+            <br />
+            <span id="lastUpdate">--</span>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Main Content -->
+      <main class="main-content">
+        <!-- Header -->
+        <header class="header">
+          <div class="header-title">
+            <h1>Fraud Detection Dashboard</h1>
+            <p class="header-subtitle">
+              Real-time transaction monitoring and risk analysis
+            </p>
+          </div>
+          <div class="header-actions">
+            <div class="status-badge">
+              <span class="status-dot"></span>
+              <span class="status-text">Live</span>
+            </div>
+          </div>
+        </header>
+
+        <!-- Stats Grid -->
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-icon">⚡</div>
+            <div class="stat-value" id="tps">--</div>
+            <div class="stat-label">Transactions/sec</div>
+            <div class="stat-change positive">↑ 12% from avg</div>
+          </div>
+
+          <div class="stat-card success">
+            <div class="stat-icon" style="background: rgba(16, 185, 129, 0.2)">
+              ✓
+            </div>
+            <div class="stat-value" id="approvedCount">0</div>
+            <div class="stat-label">Approved</div>
+            <div class="stat-change positive">99.2% approval rate</div>
+          </div>
+
+          <div class="stat-card danger">
+            <div class="stat-icon" style="background: rgba(239, 68, 68, 0.2)">
+              ⚠️
+            </div>
+            <div class="stat-value" id="fraudDetected">--</div>
+            <div class="stat-label">Fraud Detected</div>
+            <div class="stat-change negative">↑ 3 from yesterday</div>
+          </div>
+
+          <div class="stat-card">
+            <div class="stat-icon">⏱️</div>
+            <div class="stat-value" id="avgLatency">--</div>
+            <div class="stat-label">Avg Latency</div>
+            <div class="stat-change positive">↓ 0.1ms improvement</div>
+          </div>
+        </div>
+
+        <!-- Charts Grid -->
+        <div class="charts-grid">
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">Transaction Volume</span>
+              <span style="color: var(--text-muted); font-size: 0.75rem"
+                >Last 60 seconds</span
+              >
+            </div>
+            <div class="chart-container">
+              <canvas id="transactionChart"></canvas>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">Risk Distribution</span>
+            </div>
+            <div class="chart-container">
+              <canvas id="riskDistributionChart"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- Model Performance -->
+        <div class="card" style="margin-bottom: var(--spacing-xl)">
+          <div class="card-header">
+            <span class="card-title">ML Model Performance</span>
+            <span style="color: var(--text-muted); font-size: 0.75rem"
+              >Ensemble Accuracy: 99.97%</span
+            >
+          </div>
+          <div class="model-cards" id="modelCards">
+            <!-- Populated by JS -->
+          </div>
+        </div>
+
+        <!-- Heatmap -->
+        <div class="card" style="margin-bottom: var(--spacing-xl)">
+          <div class="card-header">
+            <span class="card-title">Activity Heatmap</span>
+            <span style="color: var(--text-muted); font-size: 0.75rem"
+              >24h x 7 days</span
+            >
+          </div>
+          <div class="heatmap-grid" id="heatmapContainer">
+            <!-- Populated by JS -->
+          </div>
+        </div>
+
+        <!-- Live Transactions -->
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Live Transactions</span>
+            <span style="color: var(--text-muted); font-size: 0.75rem">
+              Total: <span id="totalTransactions">0</span>
+            </span>
+          </div>
+          <div style="overflow-x: auto">
+            <table class="transaction-table">
+              <thead>
+                <tr>
+                  <th>Transaction ID</th>
+                  <th>Amount</th>
+                  <th>Location</th>
+                  <th>Risk Score</th>
+                  <th>Risk Level</th>
+                  <th>Decision</th>
+                  <th>Device</th>
+                </tr>
+              </thead>
+              <tbody id="transactionTableBody">
+                <!-- Populated by WebSocket -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <!-- Dashboard JS -->
+    <script src="/static/js/dashboard.js"></script>
+    <script>
+      // Update timestamp
+      setInterval(() => {
+        const now = new Date();
+        document.getElementById("lastUpdate").textContent =
+          now.toLocaleTimeString();
+      }, 1000);
+    </script>
+  </body>
+</html>
