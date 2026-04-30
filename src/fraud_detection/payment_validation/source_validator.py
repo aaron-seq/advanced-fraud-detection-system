@@ -13,7 +13,7 @@ Implements:
 
 from typing import Dict, Any, Optional, List
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from enum import Enum
 import logging
 
@@ -124,7 +124,7 @@ class PaymentSourceValidator:
         Returns:
             PaymentValidationResult with approval status and auth requirements
         """
-        start_time = datetime.utcnow()
+        start_time = datetime.now(timezone.utc)
         validation_factors: Dict[str, Any] = {}
         
         try:
@@ -165,7 +165,7 @@ class PaymentSourceValidator:
             validation_factors["cross_border"] = cross_border_factor
             
             # Step 6: Calculate composite risk score
-            risk_score = self._calculate_risk_score(validation_factors)
+            risk_score = self._calculate_risk_score(validation_factors, device_fingerprint)
             
             # Step 7: Determine auth requirements
             auth_requirement = self._determine_auth_requirement(
@@ -187,7 +187,7 @@ class PaymentSourceValidator:
                 },
             )
             
-            processing_time = (datetime.utcnow() - start_time).total_seconds() * 1000
+            processing_time = (datetime.now(timezone.utc) - start_time).total_seconds() * 1000
             
             logger.info(
                 "Payment validation completed",
@@ -325,6 +325,24 @@ class PaymentSourceValidator:
         amount = transaction.amount
         config = self.config
         
+        # Check against user's average FIRST (relative deviation more important than absolute thresholds)
+        if user_profile.avg_transaction_amount > 0:
+            ratio = amount / user_profile.avg_transaction_amount
+            if ratio > 5.0:
+                return ValidationFactor(
+                    name="amount",
+                    passed=False,
+                    risk_score=0.6,
+                    details=f"Amount {ratio:.1f}x higher than average"
+                )
+            elif ratio > 2.0:
+                return ValidationFactor(
+                    name="amount",
+                    passed=True,
+                    risk_score=0.4,
+                    details=f"Amount {ratio:.1f}x higher than average"
+                )
+
         # Check against absolute thresholds
         if amount >= config.very_high_value_threshold:
             return ValidationFactor(
@@ -347,24 +365,6 @@ class PaymentSourceValidator:
                 risk_score=0.3,
                 details=f"Medium value transaction: {amount}"
             )
-        
-        # Check against user's average
-        if user_profile.avg_transaction_amount > 0:
-            ratio = amount / user_profile.avg_transaction_amount
-            if ratio > 5.0:
-                return ValidationFactor(
-                    name="amount",
-                    passed=False,
-                    risk_score=0.6,
-                    details=f"Amount {ratio:.1f}x higher than average"
-                )
-            elif ratio > 2.0:
-                return ValidationFactor(
-                    name="amount",
-                    passed=True,
-                    risk_score=0.3,
-                    details=f"Amount {ratio:.1f}x higher than average"
-                )
         
         return ValidationFactor(
             name="amount",
@@ -455,7 +455,8 @@ class PaymentSourceValidator:
     
     def _calculate_risk_score(
         self,
-        validation_factors: Dict[str, ValidationFactor]
+        validation_factors: Dict[str, ValidationFactor],
+        device_fingerprint: DeviceFingerprint = None
     ) -> float:
         """Calculate composite risk score from all factors."""
         
@@ -476,7 +477,12 @@ class PaymentSourceValidator:
                 total_score += factor.risk_score * weight
                 total_weight += weight
         
-        return total_score / total_weight if total_weight > 0 else 0.5
+        base_score = total_score / total_weight if total_weight > 0 else 0.5
+
+        if device_fingerprint and device_fingerprint.network_attrs and device_fingerprint.network_attrs.is_vpn:
+            base_score = min(1.0, base_score + 0.2)
+
+        return base_score
     
     def _determine_auth_requirement(
         self,

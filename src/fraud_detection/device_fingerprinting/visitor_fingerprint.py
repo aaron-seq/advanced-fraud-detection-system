@@ -11,7 +11,7 @@ Implements Sardine-style Visitor Fingerprint methodology:
 """
 
 from typing import Dict, Any, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 import logging
 
 from ...block.models import DeviceFingerprint, DeviceAttributes, NetworkAttributes, BehavioralAttributes
@@ -146,8 +146,8 @@ class VisitorFingerprintEngine:
                 network_attrs=network_attrs,
                 behavioral_attrs=behavioral_attrs,
                 is_known_device=False,  # Would check against user's known devices
-                first_seen=datetime.utcnow(),
-                last_seen=datetime.utcnow(),
+                first_seen=datetime.now(timezone.utc),
+                last_seen=datetime.now(timezone.utc),
                 raw_attributes=raw_fingerprint.attributes,
             )
             
@@ -271,8 +271,8 @@ class VisitorFingerprintEngine:
             network_attrs=NetworkAttributes(),
             behavioral_attrs=BehavioralAttributes(),
             is_known_device=False,
-            first_seen=datetime.utcnow(),
-            last_seen=datetime.utcnow(),
+            first_seen=datetime.now(timezone.utc),
+            last_seen=datetime.now(timezone.utc),
             raw_attributes={"fallback": True, "partial": partial_attributes},
         )
         

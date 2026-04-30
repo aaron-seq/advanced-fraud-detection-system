@@ -8,7 +8,7 @@ Tests cover:
 """
 
 import pytest
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from typing import List, Dict, Any
 
 from src.fraud_detection.behavioral.spending_pattern_analyzer import (
@@ -30,7 +30,7 @@ def create_transaction_history(
     random.seed(42)  # For reproducibility
     
     history = []
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     
     for i in range(count):
         history.append({
@@ -93,7 +93,7 @@ class TestSpendingPatternAnalyzer:
             id="txn_anomalous",
             user_id="user_002",
             amount=1000.0,  # 10x average
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(timezone.utc),
         )
         
         anomaly = analyzer.detect_anomaly(anomalous_transaction, pattern)
@@ -118,7 +118,7 @@ class TestSpendingPatternAnalyzer:
             id="txn_normal",
             user_id="user_003",
             amount=95.0,  # Within normal range
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(timezone.utc),
             merchant_category="retail",
             location={"city": "New York"},
         )
@@ -135,7 +135,7 @@ class TestSpendingPatternAnalyzer:
         
         # Create history with daytime transactions only
         history = []
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         for i in range(50):
             t = now - timedelta(days=i)
             t = t.replace(hour=14)  # Always at 2 PM
@@ -153,7 +153,7 @@ class TestSpendingPatternAnalyzer:
             id="txn_night",
             user_id="user_004",
             amount=100.0,
-            timestamp=datetime.utcnow().replace(hour=3),
+            timestamp=datetime.now(timezone.utc).replace(hour=3),
         )
         
         anomaly = analyzer.detect_anomaly(night_transaction, pattern)
@@ -170,7 +170,7 @@ class TestSpendingPatternAnalyzer:
             {
                 "transaction_id": f"txn_{i}",
                 "amount": 100.0,
-                "timestamp": (datetime.utcnow() - timedelta(days=i)).isoformat(),
+                "timestamp": (datetime.now(timezone.utc) - timedelta(days=i)).isoformat(),
                 "location": {"city": "New York", "country": "US"},
             }
             for i in range(50)
@@ -183,7 +183,7 @@ class TestSpendingPatternAnalyzer:
             id="txn_foreign",
             user_id="user_005",
             amount=100.0,
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(timezone.utc),
             location={"city": "Tokyo", "country": "Japan"},
         )
         
@@ -201,7 +201,7 @@ class TestSpendingPatternAnalyzer:
             {
                 "transaction_id": f"txn_{i}",
                 "amount": 100.0,
-                "timestamp": (datetime.utcnow() - timedelta(days=i)).isoformat(),
+                "timestamp": (datetime.now(timezone.utc) - timedelta(days=i)).isoformat(),
                 "merchant_category": "retail",
             }
             for i in range(50)
@@ -214,7 +214,7 @@ class TestSpendingPatternAnalyzer:
             id="txn_gambling",
             user_id="user_006",
             amount=100.0,
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(timezone.utc),
             merchant_category="gambling",
         )
         

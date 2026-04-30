@@ -146,10 +146,10 @@ class DeviceAttributeCollector:
             result["platform"] = "Windows"
         elif "mac os" in ua_lower or "macintosh" in ua_lower:
             result["platform"] = "macOS"
-        elif "linux" in ua_lower:
-            result["platform"] = "Linux"
         elif "android" in ua_lower:
             result["platform"] = "Android"
+        elif "linux" in ua_lower:
+            result["platform"] = "Linux"
         elif "iphone" in ua_lower or "ipad" in ua_lower:
             result["platform"] = "iOS"
         

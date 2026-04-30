@@ -13,7 +13,7 @@ import time
 import statistics
 import asyncio
 import concurrent.futures
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Dict, Any
 from unittest.mock import Mock
 
@@ -58,7 +58,7 @@ def create_sample_transaction() -> Transaction:
         currency="USD",
         merchant_id="merchant_001",
         merchant_category="retail",
-        timestamp=datetime.utcnow(),
+        timestamp=datetime.now(timezone.utc),
         location={"country": "US", "city": "New York"},
         payment_method="card",
     )
@@ -191,7 +191,7 @@ class TestSpendingAnalyzerPerformance:
             {
                 "transaction_id": f"txn_{i}",
                 "amount": 100.0 + (i % 50),
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
                 "merchant_category": "retail",
                 "location": {"city": "New York"},
             }
@@ -223,7 +223,7 @@ class TestSpendingAnalyzerPerformance:
             {
                 "transaction_id": f"txn_{i}",
                 "amount": 100.0,
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
             }
             for i in range(100)
         ]

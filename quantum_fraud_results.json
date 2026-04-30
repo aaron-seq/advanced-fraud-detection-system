@@ -1,0 +1,21 @@
+{
+  "quantum_metrics": {
+    "accuracy": 0.98,
+    "auc": 0.7154903628117913,
+    "training_time": 0.36051440238952637,
+    "inference_time": 0.05051279067993164
+  },
+  "classical_metrics": {
+    "accuracy": 0.98,
+    "auc": 0.7417800453514739,
+    "training_time": 0.5368940830230713,
+    "inference_time": 0.03324747085571289
+  },
+  "comparison": {
+    "accuracy_improvement": 0.0,
+    "auc_improvement": -0.026289682539682557,
+    "training_speedup": 1.489244478069343,
+    "inference_speedup": 0.6581990503431414,
+    "quantum_advantage": false
+  }
+}

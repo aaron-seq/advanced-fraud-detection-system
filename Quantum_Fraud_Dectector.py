@@ -305,7 +305,8 @@ class QuantumFraudDetector:
             # Train hybrid quantum-classical model
             self.quantum_model = self.create_hybrid_model(X_train_processed.shape[1])
             
-            if hasattr(self.quantum_model, 'fit'):
+            # Classical fallback model will not have 'forward'
+            if hasattr(self.quantum_model, 'forward'):
                 training_history = self.quantum_model.fit(
                     X_train_processed, 
                     y_train_processed,
