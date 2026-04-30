@@ -11,7 +11,7 @@ Tests cover:
 """
 
 import pytest
-from datetime import datetime
+from datetime import datetime, timezone
 from unittest.mock import Mock
 
 from src.fraud_detection.payment_validation.source_validator import (
@@ -44,7 +44,7 @@ def create_test_transaction(
         currency="USD",
         merchant_id="merchant_001",
         merchant_category="retail",
-        timestamp=datetime.utcnow(),
+        timestamp=datetime.now(timezone.utc),
         location=location or {"country": "US", "city": "New York"},
         payment_method="card",
     )
@@ -70,7 +70,7 @@ def create_test_fingerprint(
         ),
         behavioral_attrs=BehavioralAttributes(),
         is_known_device=is_known,
-        first_seen=datetime.utcnow(),
+        first_seen=datetime.now(timezone.utc),
         raw_attributes={"fingerprint_hierarchy": {"fine": fingerprint_id}},
     )
 
@@ -226,7 +226,9 @@ class TestPaymentSourceValidator:
         
         # 100x higher than average should be flagged
         factor = result.validation_factors.get("amount")
-        if factor and isinstance(factor, dict):
+        if factor and hasattr(factor, "risk_score"):
+            assert factor.risk_score > 0.3
+        elif factor and isinstance(factor, dict):
             assert factor.get("risk_score", 0) > 0.3
     
     def test_new_user_moderate_risk(self):

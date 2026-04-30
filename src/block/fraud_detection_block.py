@@ -10,7 +10,7 @@ All dependencies are injected, making it fully testable.
 
 import logging
 from typing import Dict, Any, Optional, Protocol, List
-from datetime import datetime
+from datetime import datetime, timezone
 from dataclasses import dataclass
 
 from .models import (
@@ -173,7 +173,7 @@ class FraudDetectionBlock:
         Raises:
             FraudDetectionError: If critical error occurs during detection
         """
-        start_time = datetime.utcnow()
+        start_time = datetime.now(timezone.utc)
         
         try:
             # Track active transaction
@@ -229,7 +229,7 @@ class FraudDetectionBlock:
                 )
                 
                 # Calculate processing time
-                processing_time = (datetime.utcnow() - start_time).total_seconds() * 1000
+                processing_time = (datetime.now(timezone.utc) - start_time).total_seconds() * 1000
                 
                 # Create result
                 result = FraudDetectionResult(

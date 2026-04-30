@@ -5,7 +5,7 @@ End-to-end tests for complete fraud detection pipeline.
 """
 
 import pytest
-from datetime import datetime
+from datetime import datetime, timezone
 from unittest.mock import Mock
 
 from src.fraud_detection.device_fingerprinting import VisitorFingerprintEngine
@@ -55,8 +55,8 @@ class TestFraudDetectionFlow:
         # Step 3: Analyze spending pattern
         analyzer = SpendingPatternAnalyzer()
         pattern = analyzer.build_pattern("user_001", [
-            {"amount": 80.0, "timestamp": datetime.utcnow().isoformat()},
-            {"amount": 100.0, "timestamp": datetime.utcnow().isoformat()},
+            {"amount": 80.0, "timestamp": datetime.now(timezone.utc).isoformat()},
+            {"amount": 100.0, "timestamp": datetime.now(timezone.utc).isoformat()},
         ])
         anomaly = analyzer.detect_anomaly(transaction, pattern)
         

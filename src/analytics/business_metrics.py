@@ -15,7 +15,7 @@ ANALYTICS vs TELEMETRY:
 
 from typing import Dict, Any, Optional, List
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from collections import defaultdict
 import statistics
 import logging
@@ -210,7 +210,7 @@ class BusinessMetricsCollector:
             "risk_score": risk_score,
             "model_name": model_name,
             "latency_ms": latency_ms,
-            "timestamp": datetime.utcnow(),
+            "timestamp": datetime.now(timezone.utc),
             "metadata": metadata or {},
         }
         
@@ -317,7 +317,7 @@ class BusinessMetricsCollector:
         Returns:
             Dictionary with current stats
         """
-        end = datetime.utcnow()
+        end = datetime.now(timezone.utc)
         start = end - timedelta(hours=1)
         
         stats = self.get_period_stats(start, end)
@@ -369,7 +369,7 @@ class BusinessMetricsCollector:
         Returns:
             Drift score (0.0 to 1.0)
         """
-        end = datetime.utcnow()
+        end = datetime.now(timezone.utc)
         start = end - timedelta(hours=window_hours)
         
         # Get recent predictions
@@ -446,13 +446,13 @@ class BusinessMetricsCollector:
         Returns:
             Dictionary with full report
         """
-        end = datetime.utcnow()
+        end = datetime.now(timezone.utc)
         start = end - timedelta(days=period_days)
         
         stats = self.get_period_stats(start, end)
         
         report = {
-            "report_generated": datetime.utcnow().isoformat(),
+            "report_generated": datetime.now(timezone.utc).isoformat(),
             "period_days": period_days,
             "fraud_prevention": stats.to_dict(),
             "model_performance": {

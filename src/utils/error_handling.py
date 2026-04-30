@@ -12,7 +12,7 @@ import traceback
 import logging
 from typing import Optional, Dict, Any, Type
 from functools import wraps
-from datetime import datetime
+from datetime import datetime, timezone
 
 # Configure module logger
 logger = logging.getLogger(__name__)
@@ -38,7 +38,7 @@ class FraudDetectionError(Exception):
         super().__init__(message)
         self.message = message
         self.context = context or {}
-        self.timestamp = datetime.utcnow().isoformat()
+        self.timestamp = datetime.now(timezone.utc).isoformat()
         self.error_code = error_code or "FRAUD_DETECTION_ERROR"
     
     def to_dict(self) -> Dict[str, Any]:
@@ -192,7 +192,7 @@ def handle_error(
         "error_type": type(error).__name__,
         "error_message": str(error),
         "stack_trace": traceback.format_exc(),
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
         **context,
     }
     

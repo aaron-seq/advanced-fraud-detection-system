@@ -13,7 +13,7 @@ import json
 import sys
 import uuid
 from typing import Optional, Dict, Any, Callable
-from datetime import datetime
+from datetime import datetime, timezone
 from functools import wraps
 from contextvars import ContextVar
 
@@ -37,7 +37,7 @@ class StructuredFormatter(logging.Formatter):
     
     def format(self, record: logging.LogRecord) -> str:
         log_entry = {
-            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "timestamp": datetime.now(timezone.utc).isoformat() + "Z",
             "level": record.levelname,
             "logger": record.name,
             "message": record.getMessage(),
@@ -104,7 +104,7 @@ class HumanReadableFormatter(logging.Formatter):
         
         formatted = (
             f"{color}{record.levelname:8}{self.RESET} "
-            f"{datetime.utcnow().strftime('%H:%M:%S.%f')[:-3]} "
+            f"{datetime.now(timezone.utc).strftime('%H:%M:%S.%f')[:-3]} "
             f"{prefix}"
             f"{record.name}:{record.funcName}:{record.lineno} - "
             f"{record.getMessage()}"
