@@ -1,309 +1,298 @@
 """
-Advanced Fraud Detection System - FastAPI Backend
-Production-ready API with modern architecture and best practices.
+Advanced Fraud Detection System - FastAPI Backend.
+
+Thin HTTP layer. All detection logic lives in src/block; this module only
+translates HTTP to domain objects and back.
 """
 
-from fastapi import FastAPI, HTTPException, Depends, BackgroundTasks, status
+import logging
+import math
+import uuid
+from contextlib import asynccontextmanager
+from datetime import UTC, datetime
+
+from fastapi import Depends, FastAPI, HTTPException, Query, Request, status
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse
-import asyncio
-import logging
-from contextlib import asynccontextmanager
-from typing import List, Optional, Dict, Any
-import os
-from datetime import datetime, timedelta
-import json
+from sqlalchemy import text
 
+from app.core.cache import CacheManager, close_redis_client
 from app.core.config import get_application_settings
-from app.core.database import get_database_connection
-from app.core.cache import get_redis_client
+from app.core.database import dispose_engine, get_engine
+from app.core.security import verify_token
 from app.models.transaction_models import (
-    TransactionRequest, 
-    TransactionResponse, 
     BatchTransactionRequest,
-    ModelPerformanceMetrics
+    BatchTransactionResponse,
+    TransactionRequest,
+    TransactionResponse,
 )
-from app.services.fraud_detection_service import EnhancedFraudDetectionService
-from app.services.model_management_service import ModelManagementService
-from app.core.security import create_access_token, verify_token
+from app.services.fraud_detection_service import FraudDetectionService
 from app.utils.monitoring import RequestMonitoringMiddleware
 from app.utils.rate_limiting import RateLimitingMiddleware
 
-# Configure structured logging
+settings = get_application_settings()
+
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler('fraud_detection.log'),
-        logging.StreamHandler()
-    ]
+    level=settings.log_level,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    handlers=(
+        [logging.FileHandler(settings.log_file), logging.StreamHandler()]
+        if settings.enable_file_logging
+        else [logging.StreamHandler()]
+    ),
 )
 logger = logging.getLogger(__name__)
 
-# Application lifecycle management
+
 @asynccontextmanager
 async def application_lifecycle(app: FastAPI):
-    """Manage application startup and shutdown procedures"""
-    logger.info("🚀 Starting Advanced Fraud Detection System...")
-    
-    # Initialize services
-    app.state.fraud_service = EnhancedFraudDetectionService()
-    app.state.model_service = ModelManagementService()
-    
-    # Load ML models
-    await app.state.fraud_service.initialize_models()
-    logger.info("✅ ML Models loaded successfully")
-    
-    # Initialize database connection pool
-    app.state.database = get_database_connection()
-    logger.info("✅ Database connection established")
-    
-    # Initialize Redis cache
-    app.state.cache = get_redis_client()
-    logger.info("✅ Redis cache connected")
-    
-    yield
-    
-    # Cleanup on shutdown
-    logger.info("🛑 Shutting down fraud detection system...")
-    await app.state.database.disconnect()
-    await app.state.cache.close()
+    """Start up and tear down shared resources."""
+    logger.info("Starting Advanced Fraud Detection System")
 
-# Create FastAPI application
+    app.state.started_at = datetime.now(UTC)
+
+    app.state.fraud_service = FraudDetectionService()
+    await app.state.fraud_service.initialize(settings.model_path)
+
+    app.state.engine = get_engine()
+    app.state.cache = CacheManager()
+
+    yield
+
+    logger.info("Shutting down fraud detection system")
+    await dispose_engine()
+    await close_redis_client()
+
+
 def create_fraud_detection_application() -> FastAPI:
-    """Factory function to create and configure FastAPI application"""
-    
-    settings = get_application_settings()
-    
+    """Build and configure the FastAPI application."""
     app = FastAPI(
         title="Advanced Fraud Detection API",
-        description="Production-ready credit card fraud detection system with ML ensemble",
-        version="2.0.0",
+        description="Credit card fraud detection with device fingerprinting, "
+        "payment source validation and behavioural analysis.",
+        version=settings.app_version,
         docs_url="/api/docs" if settings.environment != "production" else None,
         redoc_url="/api/redoc" if settings.environment != "production" else None,
-        lifespan=application_lifecycle
+        lifespan=application_lifecycle,
     )
-    
-    # Security middleware
+
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=settings.allowed_hosts)
-    
-    # CORS configuration
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins,
         allow_credentials=True,
-        allow_methods=["GET", "POST", "PUT", "DELETE"],
-        allow_headers=["*"],
+        allow_methods=["GET", "POST"],
+        allow_headers=["Authorization", "Content-Type"],
     )
-    
-    # Custom middleware
     app.add_middleware(RequestMonitoringMiddleware)
-    app.add_middleware(RateLimitingMiddleware, requests_per_minute=100)
-    
+    app.add_middleware(RateLimitingMiddleware, requests_per_minute=settings.rate_limit_requests)
+
     return app
 
-# Initialize application
+
 app = create_fraud_detection_application()
 
-@app.get("/", tags=["Health Check"])
-async def system_health_check():
-    """System health and status endpoint"""
+
+def _json_safe(value):
+    """
+    Coerce values that json.dumps cannot represent into strings.
+
+    FastAPI's 422 body echoes the rejected input back. When that input is NaN
+    or infinity - exactly what the finite-number validators exist to reject -
+    rendering the error response itself raises, turning a clean 422 into a 500
+    and hiding the validation message from the client.
+    """
+    if isinstance(value, float) and not math.isfinite(value):
+        return str(value)
+    if isinstance(value, dict):
+        return {key: _json_safe(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_json_safe(item) for item in value]
+    return value
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    """Return validation failures as a JSON-encodable 422."""
+    return JSONResponse(
+        # Renamed in Starlette 1.3; the old alias is deprecated.
+        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+        content={"detail": _json_safe(exc.errors())},
+    )
+
+
+def request_context(request: Request) -> dict:
+    """
+    Build the device-fingerprinting context from the live request.
+
+    Header and peer data are read here rather than accepted from the request
+    body, so a client cannot dictate the signals used to fingerprint it.
+    """
     return {
-        "service": "Advanced Fraud Detection System",
-        "status": "operational",
-        "version": "2.0.0",
-        "timestamp": datetime.utcnow().isoformat(),
-        "features": [
-            "Real-time fraud detection",
-            "Ensemble ML models",
-            "Batch processing",
-            "Model monitoring",
-            "Explainable AI"
-        ]
+        "headers": dict(request.headers),
+        "client": (request.client.host, request.client.port) if request.client else (),
     }
 
-@app.get("/api/v1/health", tags=["Health Check"])
-async def detailed_health_check():
-    """Comprehensive health check with system metrics"""
-    try:
-        # Check database connectivity
-        db_status = await app.state.database.execute("SELECT 1")
-        db_healthy = bool(db_status)
-        
-        # Check cache connectivity  
-        cache_status = await app.state.cache.ping()
-        cache_healthy = cache_status
-        
-        # Check model availability
-        model_status = app.state.fraud_service.get_model_health()
-        
-        return {
-            "status": "healthy" if all([db_healthy, cache_healthy, model_status["loaded"]]) else "degraded",
-            "timestamp": datetime.utcnow().isoformat(),
-            "components": {
-                "database": "healthy" if db_healthy else "unhealthy",
-                "cache": "healthy" if cache_healthy else "unhealthy",
-                "ml_models": "healthy" if model_status["loaded"] else "unhealthy"
-            },
-            "metrics": {
-                "models_loaded": model_status["count"],
-                "uptime_seconds": (datetime.utcnow() - app.state.startup_time).total_seconds()
-            }
-        }
-    except Exception as e:
-        logger.error(f"Health check failed: {str(e)}")
-        raise HTTPException(status_code=503, detail="Service temporarily unavailable")
 
-@app.post("/api/v1/detect-fraud", response_model=TransactionResponse, tags=["Fraud Detection"])
+@app.get("/", tags=["Health"])
+async def system_health_check():
+    """Liveness probe."""
+    return {
+        "service": settings.app_name,
+        "status": "operational",
+        "version": settings.app_version,
+        "timestamp": datetime.now(UTC).isoformat(),
+    }
+
+
+@app.get("/api/v1/health", tags=["Health"])
+async def detailed_health_check():
+    """
+    Readiness probe covering database, cache and model availability.
+
+    Dependency failures are reported as "degraded" with a 200 rather than
+    raising, so an operator can see which component is down. Previously any
+    single failure raised a bare 503 that hid which one it was.
+    """
+    components = {}
+
+    try:
+        async with app.state.engine.connect() as connection:
+            await connection.execute(text("SELECT 1"))
+        components["database"] = "healthy"
+    except Exception as exc:
+        logger.warning("Database health check failed: %s", exc)
+        components["database"] = "unhealthy"
+
+    components["cache"] = "healthy" if await app.state.cache.ping() else "unhealthy"
+
+    model_status = app.state.fraud_service.model_health()
+    components["ml_models"] = "healthy" if model_status["loaded"] else "unhealthy"
+
+    healthy = all(state == "healthy" for state in components.values())
+
+    return {
+        "status": "healthy" if healthy else "degraded",
+        "timestamp": datetime.now(UTC).isoformat(),
+        "components": components,
+        "models": model_status,
+        "uptime_seconds": (datetime.now(UTC) - app.state.started_at).total_seconds(),
+    }
+
+
+@app.post(
+    "/api/v1/detect-fraud",
+    response_model=TransactionResponse,
+    tags=["Fraud Detection"],
+)
 async def detect_transaction_fraud(
     transaction: TransactionRequest,
-    background_tasks: BackgroundTasks
+    request: Request,
+    user: dict = Depends(verify_token),
 ):
-    """
-    Real-time fraud detection for individual transactions
-    
-    - Processes transaction in real-time (< 100ms)
-    - Uses ensemble ML models for high accuracy
-    - Provides explainable results
-    - Logs transaction for monitoring
-    """
-    try:
-        logger.info(f"Processing fraud detection request for transaction: {transaction.transaction_id}")
-        
-        # Validate transaction data
-        if not transaction.is_valid_transaction():
-            raise HTTPException(
-                status_code=400, 
-                detail="Invalid transaction data provided"
-            )
-        
-        # Perform fraud detection
-        detection_result = await app.state.fraud_service.analyze_transaction(
-            transaction_data=transaction.dict(),
-            user_context={}
-        )
-        
-        # Log transaction for monitoring (background task)
-        background_tasks.add_task(
-            log_transaction_analysis,
-            transaction.dict(),
-            detection_result
-        )
-        
-        return TransactionResponse(
-            transaction_id=transaction.transaction_id,
-            is_fraud=detection_result["is_fraud"],
-            fraud_probability=detection_result["probability"],
-            risk_score=detection_result["risk_score"],
-            confidence_level=detection_result["confidence"],
-            explanation=detection_result["explanation"],
-            model_version=detection_result["model_version"],
-            processing_time_ms=detection_result["processing_time"],
-            timestamp=datetime.utcnow()
-        )
-        
-    except ValueError as ve:
-        logger.warning(f"Validation error: {str(ve)}")
-        raise HTTPException(status_code=400, detail=str(ve))
-    except Exception as e:
-        logger.error(f"Fraud detection error: {str(e)}")
-        raise HTTPException(status_code=500, detail="Internal server error during fraud detection")
+    """Analyse a single transaction for fraud."""
+    request_id = str(uuid.uuid4())
 
-@app.post("/api/v1/detect-fraud/batch", tags=["Fraud Detection"])
+    try:
+        result = await app.state.fraud_service.analyze_transaction(
+            transaction.to_domain(
+                user_id=transaction.user_id or user["user_id"],
+                device_context=request_context(request),
+            ),
+            request_id=request_id,
+        )
+    except Exception as exc:
+        # Logged with the traceback and surfaced as a 500. Never downgraded to
+        # a default "approve": failing open is how a broken detector silently
+        # lets fraud through.
+        logger.exception("Fraud detection failed for request %s", request_id)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Fraud detection failed",
+        ) from exc
+
+    return TransactionResponse.from_result(transaction.transaction_id, result)
+
+
+@app.post(
+    "/api/v1/detect-fraud/batch",
+    response_model=BatchTransactionResponse,
+    tags=["Fraud Detection"],
+)
 async def detect_batch_fraud(
     batch_request: BatchTransactionRequest,
-    background_tasks: BackgroundTasks
+    request: Request,
+    user: dict = Depends(verify_token),
 ):
     """
-    Batch fraud detection for multiple transactions
-    
-    - Processes up to 1000 transactions in parallel
-    - Optimized for high throughput scenarios
-    - Returns aggregated results and statistics
+    Analyse a batch of transactions.
+
+    The batch size ceiling is enforced by the request model, which returns a
+    422 before any work is scheduled.
     """
+    request_id = str(uuid.uuid4())
+    context = request_context(request)
+
     try:
-        if len(batch_request.transactions) > 1000:
-            raise HTTPException(
-                status_code=413, 
-                detail="Batch size exceeds maximum limit of 1000 transactions"
-            )
-        
-        logger.info(f"Processing batch of {len(batch_request.transactions)} transactions")
-        
-        # Process transactions in parallel
-        batch_results = await app.state.fraud_service.analyze_transaction_batch(
-            transactions=[t.dict() for t in batch_request.transactions],
-            user_context={}
+        results = await app.state.fraud_service.analyze_batch(
+            [
+                item.to_domain(
+                    user_id=item.user_id or user["user_id"],
+                    device_context=context,
+                )
+                for item in batch_request.transactions
+            ],
+            request_id=request_id,
         )
-        
-        # Generate batch statistics
-        fraud_count = sum(1 for r in batch_results if r["is_fraud"])
-        avg_risk_score = sum(r["risk_score"] for r in batch_results) / len(batch_results)
-        
-        # Log batch processing (background task)
-        background_tasks.add_task(
-            log_batch_analysis,
-            len(batch_request.transactions),
-            fraud_count,
-            avg_risk_score
-        )
-        
-        return {
-            "batch_id": batch_request.batch_id,
-            "total_transactions": len(batch_request.transactions),
-            "fraud_detected": fraud_count,
-            "fraud_percentage": (fraud_count / len(batch_request.transactions)) * 100,
-            "average_risk_score": round(avg_risk_score, 3),
-            "processing_time_ms": sum(r["processing_time"] for r in batch_results),
-            "results": batch_results,
-            "timestamp": datetime.utcnow()
-        }
-        
-    except Exception as e:
-        logger.error(f"Batch processing error: {str(e)}")
-        raise HTTPException(status_code=500, detail="Error processing transaction batch")
+    except Exception as exc:
+        logger.exception("Batch fraud detection failed for request %s", request_id)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Batch fraud detection failed",
+        ) from exc
+
+    responses = [
+        TransactionResponse.from_result(item.transaction_id, result)
+        # strict=True: a length mismatch means results were silently dropped,
+        # which would pair a response with the wrong transaction.
+        for item, result in zip(batch_request.transactions, results, strict=True)
+    ]
+    flagged = [r for r in responses if r.is_fraud]
+
+    return BatchTransactionResponse(
+        batch_id=batch_request.batch_id,
+        total_transactions=len(responses),
+        fraud_detected=len(flagged),
+        fraud_percentage=round(100 * len(flagged) / len(responses), 2),
+        average_risk_score=round(sum(r.risk_score for r in responses) / len(responses), 3),
+        results=responses,
+    )
+
 
 @app.get("/api/v1/analytics/dashboard-data", tags=["Analytics"])
 async def get_dashboard_analytics(
-    days_back: int = 7
+    days_back: int = Query(7, ge=1, le=365),
+    user: dict = Depends(verify_token),
 ):
-    """Get analytics data for the dashboard"""
-    try:
-        analytics_data = await app.state.fraud_service.get_analytics_summary(
-            days_back=days_back
-        )
-        
-        return analytics_data
-        
-    except Exception as e:
-        logger.error(f"Analytics error: {str(e)}")
-        raise HTTPException(status_code=500, detail="Error retrieving analytics data")
+    """
+    Analytics over decisions this process has recorded.
 
-# Background task functions
-async def log_transaction_analysis(transaction_data: dict, result: dict):
-    """Log transaction analysis for audit and monitoring"""
-    try:
-        # Implementation for logging transaction
-        pass
-    except Exception as e:
-        logger.error(f"Error logging transaction: {str(e)}")
+    Authenticated: it exposes transaction volumes and amounts. Counters are
+    in-process and reset on restart, which the payload states in its `source`
+    field rather than leaving the caller to assume the numbers are durable.
+    """
+    return app.state.fraud_service.analytics_summary(days_back=days_back)
 
-async def log_batch_analysis(count: int, fraud_count: int, avg_score: float):
-    """Log batch analysis results"""
-    try:
-        # Implementation for logging batch analysis
-        pass
-    except Exception as e:
-        logger.error(f"Error logging batch analysis: {str(e)}")
 
 if __name__ == "__main__":
     import uvicorn
-    settings = get_application_settings()
+
     uvicorn.run(
         "app.main:app",
-        host="0.0.0.0",
+        host="127.0.0.1",
         port=settings.port,
         reload=settings.environment == "development",
-        log_level="info"
+        log_level=settings.log_level.lower(),
     )
