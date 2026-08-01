@@ -1,0 +1,37 @@
+# Keep the build context small and prevent secrets or local state from being
+# baked into the image.
+
+.git/
+.github/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.benchmarks/
+
+.venv/
+venv/
+fraud_env/
+
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+*.log
+*.db
+*.sqlite3
+
+tests/
+docs/
+notebooks/
+*.ipynb
+*.png
+*.jpg
+*.csv
+
+.vscode/
+.idea/
+.DS_Store

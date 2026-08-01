@@ -1,0 +1,59 @@
+# Ruff configuration.
+# Replaces the black + flake8 + isort combination the docs referenced but that
+# was never configured anywhere in the repo.
+
+line-length = 100
+target-version = "py311"
+
+exclude = [
+    ".git",
+    "__pycache__",
+    "build",
+    "dist",
+    # Standalone research scripts, kept as-is for reference. They are not
+    # imported by the application and are not held to its lint rules.
+    "Quantum_Fraud_Dectector.py",
+    "federated_learning_fraud.py",
+    "graph_neural_network_fraud.py",
+    "fraud_credit.py",
+    "CreditCardFraudUpdatedCode2025.py",
+]
+
+[lint]
+select = [
+    "E",    # pycodestyle errors
+    "F",    # pyflakes
+    "I",    # import sorting
+    "UP",   # pyupgrade
+    "B",    # bugbear
+    "C4",   # comprehensions
+    "DTZ",  # naive datetimes - the naive/aware mix caused real bugs here
+    "S",    # bandit security checks
+    "RUF",
+]
+
+ignore = [
+    "E501",  # line length is enforced by the formatter
+
+    # FastAPI's Depends() in argument defaults is the framework's own idiom.
+    "B008",
+
+    # str+Enum -> StrEnum is not behaviour-preserving: str(RiskLevel.LOW) is
+    # "RiskLevel.LOW" under (str, Enum) but "low" under StrEnum, which changes
+    # every f-string and log line carrying one of these values. Not worth the
+    # risk for a cosmetic gain.
+    "UP042",
+
+    # __all__ is grouped by subject with comments; alphabetising it would
+    # destroy the grouping for no readability gain.
+    "RUF022",
+]
+
+[lint.per-file-ignores]
+# Tests legitimately assert, use fixed credentials, and touch private
+# attributes. S311: `random` is for generating load-test fixtures, not keys.
+# DTZ001: naive datetimes are constructed deliberately to test coercion.
+"tests/**" = ["S101", "S105", "S106", "SLF001", "S311", "DTZ001"]
+
+[format]
+quote-style = "double"

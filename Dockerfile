@@ -1,72 +1,59 @@
-# Advanced Fraud Detection System - Production Dockerfile
-# Multi-stage build for optimized production image
+# Advanced Fraud Detection System - production image.
+# Multi-stage: build wheels once, ship only the runtime layer.
 
-# Build stage
-FROM python:3.11-slim as builder
+FROM python:3.13-slim AS builder
 
-# Set environment variables
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
-    curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Create app directory
 WORKDIR /app
 
-# Copy requirements first for better Docker layer caching
 COPY requirements.txt .
+RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
 
-# Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
 
-# Production stage
-FROM python:3.11-slim as production
+FROM python:3.13-slim AS production
 
-# Set environment variables
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    PATH="/app/.venv/bin:$PATH" \
+    PYTHONPATH=/app \
     ENVIRONMENT=production
 
-# Install runtime dependencies
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     && rm -rf /var/lib/apt/lists/* \
     && groupadd -r appuser \
     && useradd -r -g appuser appuser
 
-# Set work directory
 WORKDIR /app
 
-# Copy Python dependencies from builder stage
-COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
-COPY --from=builder /usr/local/bin /usr/local/bin
+COPY --from=builder /install /usr/local
 
-# Copy application code
+# src/ holds the detection logic that app/ imports. The previous Dockerfile
+# omitted it and instead copied models/ and scripts/, neither of which exists
+# in this repository - so the build failed, and would have produced an image
+# that could not import app.main even if it had succeeded.
 COPY app/ ./app/
-COPY dashboard/ ./dashboard/
-COPY models/ ./models/
-COPY scripts/ ./scripts/
+COPY src/ ./src/
 
-# Create necessary directories
-RUN mkdir -p /app/logs /app/models /app/data && \
-    chown -R appuser:appuser /app
+RUN mkdir -p /app/logs /app/models /app/data && chown -R appuser:appuser /app
 
-# Switch to non-root user
 USER appuser
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:8000/api/v1/health || exit 1
+# Probes the readiness endpoint, which reports database, cache and model state.
+HEALTHCHECK --interval=30s --timeout=10s --start-period=20s --retries=3 \
+    CMD curl -fsS http://localhost:8000/api/v1/health || exit 1
 
-# Expose port
 EXPOSE 8000
 
-# Default command
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
+# Binding 0.0.0.0 is required for the port to be reachable from outside the
+# container; the container boundary, not the bind address, is the control here.
+# SECRET_KEY must be supplied at runtime - the app refuses to start without it
+# when ENVIRONMENT=production.
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4"]
