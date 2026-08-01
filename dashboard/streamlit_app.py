@@ -74,59 +74,54 @@ class FraudDetectionDashboard:
     """Main dashboard class for fraud detection analytics"""
     
     def __init__(self):
-        self.api_base_url = self._get_api_url()
-        self.session = requests.Session()
-        
-    def _get_api_url(self) -> str:
-        """Get API base URL from environment or default"""
         import os
-        return os.getenv("API_BASE_URL", "http://localhost:8000")
-    
-    def fetch_analytics_data(self, days_back: int = 7) -> Dict[str, Any]:
-        """Fetch analytics data from the API"""
+
+        self.api_base_url = os.getenv("API_BASE_URL", "http://localhost:8000")
+        self.session = requests.Session()
+
+        # Detection and analytics endpoints require a bearer token.
+        token = os.getenv("API_TOKEN", "")
+        if token:
+            self.session.headers["Authorization"] = f"Bearer {token}"
+
+    def fetch_analytics_data(self, days_back: int = 7) -> Dict[str, Any] | None:
+        """
+        Fetch analytics from the API. Returns None when unavailable.
+
+        A failure is surfaced, never replaced with plausible-looking numbers.
+        This previously fell back to a hardcoded 15847 transactions and 99.87%
+        accuracy dated 2024, so an operator staring at a dead backend saw a
+        busy, healthy system.
+        """
         try:
             response = self.session.get(
                 f"{self.api_base_url}/api/v1/analytics/dashboard-data",
                 params={"days_back": days_back},
-                timeout=10
+                timeout=10,
             )
-            if response.status_code == 200:
-                return response.json()
-            else:
-                st.error(f"API Error: {response.status_code}")
-                return self._get_mock_data()
-        except Exception as e:
-            logger.warning(f"API call failed: {str(e)}, using mock data")
-            return self._get_mock_data()
-    
-    def _get_mock_data(self) -> Dict[str, Any]:
-        """Generate mock analytics data for demonstration"""
-        return {
-            "transactions_processed": 15847,
-            "fraud_detected": 267,
-            "fraud_rate": 1.68,
-            "avg_processing_time_ms": 45.2,
-            "model_accuracy": 99.87,
-            "daily_stats": [
-                {"date": "2024-10-10", "transactions": 2341, "fraud": 39, "legitimate": 2302},
-                {"date": "2024-10-09", "transactions": 2198, "fraud": 35, "legitimate": 2163},
-                {"date": "2024-10-08", "transactions": 2445, "fraud": 41, "legitimate": 2404},
-                {"date": "2024-10-07", "transactions": 2156, "fraud": 28, "legitimate": 2128},
-                {"date": "2024-10-06", "transactions": 1987, "fraud": 32, "legitimate": 1955},
-                {"date": "2024-10-05", "transactions": 2234, "fraud": 45, "legitimate": 2189},
-                {"date": "2024-10-04", "transactions": 2486, "fraud": 47, "legitimate": 2439},
-            ],
-            "model_performance": {
-                "xgboost": {"accuracy": 99.89, "precision": 98.5, "recall": 96.8, "f1_score": 97.6},
-                "lightgbm": {"accuracy": 99.85, "precision": 98.2, "recall": 96.9, "f1_score": 97.5},
-                "catboost": {"accuracy": 99.82, "precision": 97.9, "recall": 97.1, "f1_score": 97.5}
-            },
-            "recent_alerts": [
-                {"id": "TXN-001", "amount": 15000, "risk_score": 95.2, "timestamp": "2024-10-10T14:23:00"},
-                {"id": "TXN-002", "amount": 8500, "risk_score": 88.7, "timestamp": "2024-10-10T13:45:00"},
-                {"id": "TXN-003", "amount": 12000, "risk_score": 92.1, "timestamp": "2024-10-10T12:18:00"},
-            ]
-        }
+        except requests.RequestException as exc:
+            logger.warning("Analytics request failed: %s", exc)
+            st.error(f"Cannot reach the API at {self.api_base_url}: {exc}")
+            return None
+
+        if response.status_code == 401:
+            st.error("Unauthorized. Set API_TOKEN in the environment.")
+            return None
+        if response.status_code != 200:
+            st.error(f"API returned {response.status_code}: {response.text[:200]}")
+            return None
+
+        return response.json()
+
+    def fetch_health(self) -> Dict[str, Any] | None:
+        """Fetch real component health; None if the API is unreachable."""
+        try:
+            response = self.session.get(
+                f"{self.api_base_url}/api/v1/health", timeout=5
+            )
+            return response.json() if response.status_code == 200 else None
+        except requests.RequestException:
+            return None
     
     def test_transaction(self, transaction_data: Dict[str, Any]) -> Dict[str, Any]:
         """Test a single transaction through the API"""
@@ -366,7 +361,7 @@ class FraudDetectionDashboard:
         
         # Dashboard refresh
         if st.sidebar.button("🔄 Refresh Dashboard"):
-            st.experimental_rerun()
+            st.rerun()
         
         # Time range selector
         days_back = st.sidebar.selectbox(
@@ -376,17 +371,35 @@ class FraudDetectionDashboard:
             format_func=lambda x: f"Last {x} day{'s' if x > 1 else ''}"
         )
         
-        # System status
+        # System status, read from /api/v1/health. These indicators were
+        # previously hardcoded to green and stayed green while the backend was
+        # down - a status light that cannot turn red is not a status light.
         st.sidebar.subheader("📊 System Status")
-        st.sidebar.success("🟢 API: Online")
-        st.sidebar.success("🟢 Models: Loaded")
-        st.sidebar.success("🟢 Cache: Connected")
-        
-        # Model info
-        st.sidebar.subheader("🤖 Active Models")
-        st.sidebar.write("• XGBoost v2.0")
-        st.sidebar.write("• LightGBM v4.1")
-        st.sidebar.write("• CatBoost v1.2")
+        health = self.api_client.fetch_health()
+
+        if health is None:
+            st.sidebar.error("🔴 API: Unreachable")
+        else:
+            st.sidebar.success("🟢 API: Online")
+            for component, state in health.get("components", {}).items():
+                label = component.replace("_", " ").title()
+                if state == "healthy":
+                    st.sidebar.success(f"🟢 {label}: healthy")
+                else:
+                    st.sidebar.error(f"🔴 {label}: {state}")
+
+        # Active model, reported by the API rather than assumed. The previous
+        # hardcoded XGBoost/LightGBM/CatBoost list named models that are not
+        # loaded; the service serves a heuristic unless MODEL_PATH holds
+        # trained artefacts.
+        st.sidebar.subheader("🤖 Active Model")
+        models = (health or {}).get("models") or {}
+        if not models:
+            st.sidebar.write("unknown")
+        else:
+            st.sidebar.write(f"• {models.get('active_model', 'unknown')}")
+            if models.get("trained") is False:
+                st.sidebar.warning("Heuristic baseline - not a trained model")
         
         return days_back
     
@@ -400,7 +413,17 @@ class FraudDetectionDashboard:
         # Fetch data
         with st.spinner("Loading dashboard data..."):
             data = self.fetch_analytics_data(days_back)
-        
+
+        if data is None:
+            # Rendering charts over absent data would draw empty axes that look
+            # like "no fraud today" rather than "no connection".
+            st.warning(
+                "Analytics unavailable. The transaction tester below still "
+                "works if the API is reachable."
+            )
+            self.render_transaction_tester()
+            return
+
         # Main content
         self.render_kpi_metrics(data)
         
@@ -425,7 +448,7 @@ class FraudDetectionDashboard:
         
         # Auto-refresh
         time.sleep(30)  # Refresh every 30 seconds
-        st.experimental_rerun()
+        st.rerun()
 
 def main():
     """Main application entry point"""

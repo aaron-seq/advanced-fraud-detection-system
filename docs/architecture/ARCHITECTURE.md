@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Advanced Fraud Detection System is a production-grade, real-time fraud detection platform built for 2026 standards. It processes transactions in sub-millisecond latency using ensemble ML models, device fingerprinting, and behavioral analytics.
+The Advanced Fraud Detection System is a real-time fraud detection service combining device fingerprinting, payment source validation, behavioural analytics and an optional ML ensemble behind a FastAPI HTTP API.
 
 ## Architecture Diagram
 
@@ -222,12 +222,20 @@ graph TB
 
 ## Performance Targets
 
-| Metric                    | Target     | Current   |
-| ------------------------- | ---------- | --------- |
-| Fraud Check Latency (p95) | < 1ms      | ~0.5ms    |
-| Throughput                | 10,000 TPS | Validated |
-| Detection Accuracy        | > 99.9%    | 99.97%    |
-| False Positive Rate       | < 1%       | 0.8%      |
+These are **targets**, not measurements. No held-out evaluation runs in this
+repository, so the accuracy and false-positive columns have no measured value
+to report. Publishing an unmeasured number as "current" is how an aspiration
+gets cited as a result.
+
+| Metric                    | Target     | Measured                        |
+| ------------------------- | ---------- | ------------------------------- |
+| Fraud Check Latency (p95) | < 1ms      | see `pytest tests/performance`  |
+| Throughput                | 10,000 TPS | not measured                    |
+| Detection Accuracy        | > 99.9%    | not measured - no eval pipeline |
+| False Positive Rate       | < 1%       | not measured - no eval pipeline |
+
+Establishing these requires a training and evaluation pipeline that emits a
+report against a held-out set; see the roadmap in the README.
 
 ## Security Considerations
 

@@ -1,490 +1,287 @@
-# Advanced Credit Card Fraud Detection System v2.8
+# Advanced Fraud Detection System
 
-[![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Quantum ML](https://img.shields.io/badge/Quantum-ML-purple.svg)](https://qiskit.org/)
-[![Federated Learning](https://img.shields.io/badge/Federated-Learning-green.svg)](https://flower.dev/)
-[![Real-time](https://img.shields.io/badge/Real--time-Streaming-red.svg)](https://kafka.apache.org/)
 
-##  Revolutionary Fraud Detection with 2025's Latest AI Technologies
+A credit card fraud detection service built around device fingerprinting,
+payment source validation, and behavioural analysis, exposed over a FastAPI
+HTTP API.
 
-This repository contains the world's most advanced credit card fraud detection system, implementing cutting-edge technologies from 2025 including **Quantum Machine Learning**, **Graph Neural Networks**, **Federated Learning**, and **Real-time Streaming Analytics**.
+> **On scores:** with no trained model present the API serves a documented
+> heuristic baseline and reports `"trained": false` from `/api/v1/health`. It
+> does not pretend a heuristic is a fitted model. No accuracy figures are
+> published here because none have been measured on a held-out dataset in this
+> repository — see [Known limitations](#known-limitations).
 
-###  Key Achievements
-- **99.98% Accuracy** with SL-SSNet Hybrid Architecture
-- **<1ms Latency** for real-time fraud detection
-- **Privacy-preserving** federated learning across institutions
-- **Explainable AI** for regulatory compliance
-- **Quantum advantage** for complex pattern recognition
+---
 
-##  Latest Technologies Integrated
+## What it does
 
-### 1. **Quantum Machine Learning**
-- **Sea Lion-Self-Supervised Networks (SL-SSNet)** achieving 99.98% accuracy
-- **Variational Quantum Classifiers (VQC)** for complex pattern detection
-- **Hybrid Quantum-Classical** architectures with parameter-shift rule optimization
-- **Quantum Neural Networks** for high-dimensional feature processing
+A transaction is scored by combining four independent signals:
 
-### 2. **Graph Neural Networks** 
-- **Graph Attention Networks (GAT)** for transaction relationship analysis
-- **FraudGT** - Simple, effective graph transformer for fraud detection
-- **Dynamic graph construction** for real-time relationship mapping
-- **Temporal-spatial graph intelligence** with attention mechanisms
+| Signal | Source | What it contributes |
+|---|---|---|
+| **Device** | `src/fraud_detection/device_fingerprinting/` | Fingerprint stability, VPN/proxy/Tor/datacenter detection, spoofing and bot indicators, whether the device is bound to the user |
+| **Payment source** | `src/fraud_detection/payment_validation/` | Amount bands, deviation from the user's norm, location familiarity, velocity, cross-border rules |
+| **Model** | `app/services/fraud_detection_service.py` | A trained ensemble if `MODEL_PATH` holds artefacts, otherwise the heuristic baseline |
+| **Behaviour** | `src/fraud_detection/behavioral/` | Spending-pattern deviation and time-of-day anomalies |
 
-### 3. **Federated Learning**
-- **Privacy-preserving** distributed training across financial institutions
-- **SMOTE + LSTM** combination in federated setup for superior performance
-- **Differential privacy** with homomorphic encryption
-- **Byzantine-robust aggregation** protocols
+These are fused into a 0–100 risk score and mapped to a decision
+(`approve` / `additional_auth_required` / `review` / `deny`) plus an
+authentication requirement (none / OTP / MFA / biometric / manual review).
 
-### 4. **Advanced Ensemble Methods**
-- **Stacking ensembles** with XGBoost, LightGBM, CatBoost achieving 99.96% accuracy
-- **Soft voting mechanisms** for improved classification
-- **Dynamic weighted aggregation** for heterogeneous clients
-- **Multi-objective optimization** with quantum annealing
-
-### 5. **Transformer Models**
-- **FinBERT embeddings** for financial statement fraud detection with 83% accuracy
-- **Graph self-attention transformers** with 20% AP improvement
-- **Cloud-optimized real-time streaming** transformers
-- **Sequential transaction analysis** with attention mechanisms
-
-### 6. **Real-time Streaming Analytics**
-- **Sub-second latency** (0.6s mean) processing
-- **98.7% detection accuracy** with 0.8% false positive rate
-- **Apache Kafka** integration for continuous monitoring
-- **Complex event processing** for pattern recognition
-
-## 📊 Performance Benchmarks
-
-| Technology | Accuracy | Precision | Recall | F1-Score | Processing Time |
-|------------|----------|-----------|--------|----------|-----------------|
-| **SL-SSNet Hybrid** | **99.98%** | 82.46% | 97.23% | 89.97% | Real-time |
-| **GAN-based Ensemble** | **99.9%** | 99.9% | High | 99.9% | Enhanced |
-| **Stacking Ensemble** | **99.96%** | 99.53% | 100% | 99.0% | Optimized |
-| **Transformer GNN** | **+20% AP** | High | High | Superior | **<1ms** |
-
-## Repository Structure
+### Architecture
 
 ```
-CreditCardFraudDetection/
-├── 📁 src/                              # Core source code
-│   ├── 🧠 advanced_fraud_detector.py     # Main ML system
-│   ├── 🌊 streaming_fraud_detector.py    # Real-time processing
-│   ├── 🔗 federated_learning_fraud.py    # Federated learning
-│   ├── 📊 graph_neural_network_fraud.py  # GNN implementation
-│   ├── ⚛️ quantum_fraud_detector.py      # Quantum ML
-│   ├── 🔍 explainable_ai_fraud.py        # XAI components
-│   └── 🎯 ensemble_optimizer.py          # Hyperparameter optimization
-├── 📁 models/                           # Trained models
-│   ├── ensemble/                        # Classical ML models
-│   ├── quantum/                         # Quantum model weights
-│   ├── gnn/                            # Graph neural networks
-│   └── federated/                      # Federated model artifacts
-├── 📁 data/                            # Data management
-│   ├── processors/                     # Data preprocessing
-│   ├── generators/                     # Synthetic data
-│   └── validators/                     # Data quality checks
-├── 📁 notebooks/                       # Jupyter notebooks
-│   ├── 📈 01_data_exploration.ipynb     # EDA and analysis
-│   ├── 🤖 02_advanced_modeling.ipynb    # Model development
-│   ├── ⚛️ 03_quantum_experiments.ipynb  # Quantum ML
-│   ├── 📊 04_gnn_analysis.ipynb         # Graph analysis
-│   └── 🌐 05_federated_training.ipynb   # Federated learning
-├── 📁 config/                          # Configuration files
-│   ├── model_config.yaml              # Model settings
-│   ├── deployment_config.yaml         # Deployment config
-│   └── quantum_config.yaml            # Quantum settings
-├── 📁 deployment/                      # Deployment artifacts
-│   ├── docker/                         # Docker configurations
-│   ├── kubernetes/                     # K8s manifests
-│   └── terraform/                      # Infrastructure as code
-├── 📁 tests/                           # Testing suite
-│   ├── unit/                           # Unit tests
-│   ├── integration/                    # Integration tests
-│   └── performance/                    # Performance tests
-├── 📁 docs/                            # Documentation
-│   ├── api/                            # API documentation
-│   ├── tutorials/                      # Usage tutorials
-│   └── research/                       # Research papers
-├── 📄 requirements.txt                 # Python dependencies
-├── 📄 setup.py                         # Package setup
-├── 📄 Dockerfile                       # Container setup
-├── 📄 docker-compose.yml               # Multi-service setup
-└── 📄 README.md                        # This file
+HTTP request
+     │
+     ▼
+app/main.py                      FastAPI: routing, auth, validation only
+     │                           middleware: trusted host → CORS → monitoring → rate limit
+     ▼
+app/services/…_service.py        Adapters that satisfy the block's Protocols
+     │
+     ▼
+src/block/fraud_detection_block.py    All detection logic. No I/O, no framework
+     │                                imports, every dependency injected.
+     ├── device fingerprint  →  src/fraud_detection/device_fingerprinting/
+     ├── payment validation  →  src/fraud_detection/payment_validation/
+     ├── behavioural         →  src/fraud_detection/behavioral/
+     └── telemetry           →  src/telemetry/  (Prometheus)
 ```
 
-## Quick Start
+The rule that keeps this maintainable: **`src/` never imports from `app/`.**
+Business logic stays framework-free and unit-testable; `app/` only translates
+HTTP to domain objects and back.
 
-### Prerequisites
-- Python 3.9+
-- CUDA-compatible GPU (recommended)
-- Docker & Docker Compose
-- Apache Kafka (for streaming)
-- Quantum computing backend (optional)
+---
 
-### Installation
+## Quick start
+
+Requires Python 3.11+.
 
 ```bash
-# Clone the repository
-git clone https://github.com/aaronseq12/CreditCardFraudDetection.git
-cd CreditCardFraudDetection
+git clone https://github.com/aaron-seq/advanced-fraud-detection-system.git
+cd advanced-fraud-detection-system
 
-# Create virtual environment
-python -m venv fraud_env
-source fraud_env/bin/activate  # Linux/Mac
-# fraud_env\Scripts\activate    # Windows
+python -m venv .venv
+source .venv/bin/activate        # Windows: .venv\Scripts\activate
 
-# Install dependencies
 pip install -r requirements.txt
 
-# Install optional quantum packages
-pip install qiskit[all] pennylane pennylane-lightning
-
-# Install graph neural network packages
-pip install torch-geometric dgl networkx
-
-# Install federated learning framework
-pip install flwr
+cp .env.example .env             # optional; sane defaults work for local dev
+uvicorn app.main:app --reload
 ```
 
-### Docker Setup
+Interactive docs at <http://127.0.0.1:8000/api/docs> (disabled when
+`ENVIRONMENT=production`).
+
+### Making a request
+
+Every detection endpoint requires a bearer token.
+
 ```bash
-# Build and run the complete system
-docker-compose up --build
+TOKEN=$(python -c "from app.core.security import create_access_token; print(create_access_token('user_1'))")
 
-# For production deployment
-docker-compose -f docker-compose.prod.yml up -d
+curl -X POST http://127.0.0.1:8000/api/v1/detect-fraud \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+        "transaction_id": "txn_1",
+        "amount": 4200.0,
+        "transaction_type": "purchase",
+        "transaction_country": "US",
+        "transaction_city": "New York",
+        "features": {"V1": -1.36, "V2": 0.07, "V3": 2.53, "Amount": 149.62}
+      }'
 ```
 
-## Usage Examples
-
-### 1. **Advanced Ensemble Fraud Detection**
-```python
-from src.advanced_fraud_detector import AdvancedFraudDetector
-
-# Configure advanced system
-config = {
-    'use_quantum': True,
-    'use_gnn': True, 
-    'use_transformers': True,
-    'use_federated': False,
-    'ensemble_methods': ['xgb', 'lgb', 'catboost', 'rf'],
-    'optimization_trials': 100
+```json
+{
+  "transaction_id": "txn_1",
+  "decision": "approve",
+  "is_fraud": false,
+  "fraud_probability": 0.22,
+  "risk_score": 31.0,
+  "risk_level": "medium",
+  "model_version": "2.9.0",
+  "processing_time_ms": 3.3
 }
-
-# Initialize detector
-detector = AdvancedFraudDetector(config)
-
-# Load and preprocess data
-X, y, df = detector.load_and_preprocess_data('data/creditcard.csv')
-
-# Train ensemble models with optimization
-models = detector.train_ensemble_models(X_train, y_train)
-
-# Evaluate performance
-results = detector.evaluate_models(X_test, y_test)
-print(f"Ensemble AUC: {results['ensemble']['auc']:.4f}")
-
-# Generate explanations
-detector.explain_predictions(X_train, X_test, 'xgb')
 ```
 
-### 2. **Real-time Streaming Detection**
-```python
-from src.streaming_fraud_detector import RealTimeFraudDetector
+(`processing_time_ms` varies; the rest is the actual output for that request.)
 
-# Initialize streaming system
-detector = RealTimeFraudDetector(
-    model_path='models/advanced_fraud_detector',
-    kafka_config={
-        'bootstrap_servers': ['localhost:9092'],
-        'transaction_topic': 'credit_card_transactions',
-        'fraud_alert_topic': 'fraud_alerts'
-    }
-)
+### Docker
 
-# Start real-time processing
-detector.start_kafka_consumer()
-
-# Or run simulation
-detector.simulate_transactions(num_transactions=10000)
-```
-
-### 3. **Federated Learning Across Institutions**
-```python
-from src.federated_learning_fraud import FederatedFraudDetector
-
-# Initialize federated client for Bank A
-client_a = FederatedFraudDetector(
-    institution_id='bank_a',
-    config={
-        'differential_privacy': True,
-        'noise_multiplier': 0.1,
-        'local_epochs': 5
-    }
-)
-
-# Load local data (privacy-preserved)
-client_a.load_local_data('data/bank_a_transactions.csv')
-
-# Participate in federated training
-local_results = client_a.train_local_model()
-
-# Federated aggregation happens at central server
-# Multiple institutions collaborate without sharing raw data
-```
-
-### 4. **Graph Neural Network Analysis**
-```python
-from src.graph_neural_network_fraud import GNNFraudDetectionSystem
-
-# Configure GNN system
-config = {
-    'model_type': 'GAT',  # or 'GCN', 'SAGE'
-    'hidden_dim': 64,
-    'num_layers': 3,
-    'graph_method': 'transaction_based'
-}
-
-# Initialize GNN system
-gnn_system = GNNFraudDetectionSystem(config)
-
-# Prepare graph data from transactions
-train_data, test_data = gnn_system.prepare_data(df)
-
-# Train graph neural network
-training_history = gnn_system.train_model(train_data)
-
-# Evaluate on test data
-results = gnn_system.evaluate_model(test_data)
-print(f"GNN AUC: {results['auc']:.4f}")
-
-# Visualize results
-gnn_system.visualize_results(results)
-```
-
-### 5. **Quantum Machine Learning**
-```python
-from src.quantum_fraud_detector import QuantumFraudDetector
-
-# Initialize quantum system
-quantum_detector = QuantumFraudDetector(
-    n_qubits=8,
-    quantum_device='default.qubit',
-    backend='qiskit.aer'
-)
-
-# Train quantum classifier
-quantum_detector.train_quantum_classifier(X_train, y_train)
-
-# Make quantum predictions
-quantum_predictions = quantum_detector.predict(X_test)
-quantum_proba = quantum_detector.predict_proba(X_test)
-
-print(f"Quantum Model AUC: {roc_auc_score(y_test, quantum_proba):.4f}")
-```
-
-## Privacy & Security Features
-
-### Federated Learning Security
-- **Multi-institutional collaboration** without raw data sharing
-- **Differential privacy** with configurable noise multipliers
-- **Homomorphic encryption** for secure computations
-- **Byzantine-robust aggregation** against malicious clients
-- **GDPR compliance** mechanisms
-
-### Quantum Security
-- **Quantum-resistant cryptographic** protocols
-- **Quantum key distribution** for secure model updates
-- **Post-quantum cryptography** implementation
-- **Quantum random number generation** for enhanced security
-
-## Deployment Options
-
-### 1. **Cloud-Native Kubernetes**
-```yaml
-# kubernetes/fraud-detection-deployment.yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: fraud-detection-api
-  labels:
-    app: fraud-detection
-spec:
-  replicas: 3
-  selector:
-    matchLabels:
-      app: fraud-detection
-  template:
-    metadata:
-      labels:
-        app: fraud-detection
-    spec:
-      containers:
-      - name: fraud-api
-        image: fraud-detection:latest
-        ports:
-        - containerPort: 8080
-        env:
-        - name: MODEL_PATH
-          value: "/models/ensemble"
-        - name: KAFKA_SERVERS
-          value: "kafka-cluster:9092"
-        - name: QUANTUM_BACKEND
-          value: "qiskit.aer"
-        resources:
-          requests:
-            memory: "2Gi"
-            cpu: "1000m"
-          limits:
-            memory: "4Gi"
-            cpu: "2000m"
-```
-
-### 2. **Edge Computing Deployment**
-```python
-# Edge-optimized model deployment
-from src.edge_optimizer import EdgeModelOptimizer
-
-optimizer = EdgeModelOptimizer()
-
-# Convert to TensorFlow Lite
-tflite_model = optimizer.convert_to_tflite(model, quantize=True)
-
-# Convert to ONNX for cross-platform
-onnx_model = optimizer.convert_to_onnx(model)
-
-# Deploy to edge devices
-optimizer.deploy_to_edge(tflite_model, device_type='mobile')
-```
-
-### 3. **Streaming Architecture**
-```yaml
-# docker-compose.yml for streaming setup
-version: '3.8'
-services:
-  zookeeper:
-    image: confluentinc/cp-zookeeper:latest
-    environment:
-      ZOOKEEPER_CLIENT_PORT: 2181
-      ZOOKEEPER_TICK_TIME: 2000
-
-  kafka:
-    image: confluentinc/cp-kafka:latest
-    depends_on:
-      - zookeeper
-    ports:
-      - "9092:9092"
-    environment:
-      KAFKA_BROKER_ID: 1
-      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-
-  fraud-detector:
-    build: .
-    depends_on:
-      - kafka
-    environment:
-      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
-      - MODEL_PATH=/models
-      - QUANTUM_ENABLED=true
-    volumes:
-      - ./models:/models
-
-  monitoring-dashboard:
-    build: ./dashboard
-    ports:
-      - "8501:8501"
-    depends_on:
-      - fraud-detector
-```
-
-##  Business Impact
-
-### Financial Benefits
-- **Up to 90% reduction** in fraudulent losses
-- **30-50% decrease** in false positives
-- **Millisecond response times** vs hours in traditional systems
-- **Enhanced customer trust** and regulatory compliance
-
-### Operational Improvements
-- **Automated model retraining** with drift detection
-- **Real-time alerting** and intervention capabilities
-- **Cross-institutional intelligence** sharing via federated learning
-- **Explainable AI** for regulatory compliance and audit trails
-
-## Experimental Features
-
-### Cutting-Edge Research Integration
-- **Neuromorphic computing** with spiking neural networks
-- **Quantum advantage exploration** with QAOA algorithms
-- **Hypergraph neural networks** for complex relationships
-- **Continual learning** systems that adapt to new patterns
-
-### Advanced Techniques
-- **Multi-modal ensemble learning** with uncertainty quantification
-- **Dynamic graph construction** with temporal evolution
-- **Automated architecture search** with neural architecture search
-- **Transfer learning** across different financial domains
-
-## Research & Publications
-
-This implementation incorporates findings from cutting-edge 2025 research:
-
-1. **"Quantum Machine Learning for Financial Fraud Detection"** - *Nature Machine Intelligence*, 2025
-2. **"Federated Learning with Differential Privacy in Banking"** - *IEEE TIFS*, 2025  
-3. **"Graph Neural Networks for Transaction Analysis"** - *KDD 2024*
-4. **"Real-time Fraud Detection with Transformers"** - *AAAI 2025*
-
-## 🤝 Contributing
-
-We welcome contributions from the community! Please see our [Contributing Guidelines](CONTRIBUTING.md).
-
-### Development Setup
 ```bash
-# Install development dependencies
-pip install -r requirements-dev.txt
-
-# Run tests
-python -m pytest tests/
-
-# Code formatting
-black src/
-flake8 src/
-
-# Type checking
-mypy src/
+echo "SECRET_KEY=$(python -c 'import secrets; print(secrets.token_urlsafe(32))')" >> .env
+docker compose up --build
 ```
 
-### Areas for Contribution
--  **New ML architectures** and algorithms
--  **Performance optimizations** and speedups
--  **Security enhancements** and privacy features
--  **Documentation** and tutorials
--  **Bug fixes** and testing improvements
+Starts the API on `:8000` with PostgreSQL and Redis. The API refuses to start
+without `SECRET_KEY` when `ENVIRONMENT=production`.
+
+---
+
+## API
+
+| Method | Path | Auth | Purpose |
+|---|---|---|---|
+| `GET` | `/` | — | Liveness |
+| `GET` | `/api/v1/health` | — | Readiness: database, cache, model state |
+| `POST` | `/api/v1/detect-fraud` | Bearer | Score one transaction |
+| `POST` | `/api/v1/detect-fraud/batch` | Bearer | Score up to 1000 transactions |
+| `GET` | `/api/v1/analytics/dashboard-data` | Bearer | Metrics over decisions this process recorded |
+
+`/api/v1/health` reports `degraded` with a 200 rather than a bare 503, so you
+can see *which* dependency is down:
+
+```json
+{
+  "status": "degraded",
+  "components": {"database": "healthy", "cache": "unhealthy", "ml_models": "healthy"},
+  "models": {"loaded": true, "active_model": "heuristic-baseline", "trained": false}
+}
+```
+
+---
+
+## Configuration
+
+All settings come from environment variables (or `.env`). Full list in
+[.env.example](.env.example). The ones that matter most:
+
+| Variable | Default | Notes |
+|---|---|---|
+| `ENVIRONMENT` | `development` | `production` disables `/api/docs` and requires `SECRET_KEY` |
+| `SECRET_KEY` | *(ephemeral)* | **Required in production.** Outside production a random key is generated per process, so tokens do not survive a restart |
+| `DATABASE_URL` | `sqlite+aiosqlite:///./fraud_detection.db` | Must use an async driver |
+| `REDIS_URL` | `redis://localhost:6379/0` | Cache is optional; unavailability degrades latency, not correctness |
+| `MODEL_PATH` | `./models` | Empty ⇒ heuristic baseline. Treat as trusted infrastructure: joblib deserialises via pickle |
+| `TRUST_PROXY_HEADERS` | `false` | Enable **only** behind a proxy that overwrites `X-Forwarded-For` |
+| `ALLOWED_HOSTS` | `localhost,127.0.0.1` | Requests with any other `Host` get a 400 |
+
+### Serving a trained model
+
+Put `*.joblib` files plus a `feature_names.joblib` in `MODEL_PATH`. The service
+loads them at startup and `/api/v1/health` flips to `"trained": true`. With an
+incomplete directory it logs a warning and falls back to the heuristic rather
+than serving partial results.
+
+---
+
+## Security
+
+- **Authentication on every detection and analytics endpoint.** Tokens are
+  HS256 JWTs via PyJWT; invalid, expired, or foreign-signed tokens get a 401.
+- **Dependencies audited.** `pip-audit --strict` runs in CI and currently
+  reports no known vulnerabilities. Reaching that meant moving off
+  `python-jose` (unpatched advisories, and it pulls in `ecdsa` and `rsa` for
+  asymmetric algorithms this service never uses) and onto newer `starlette`
+  and `python-multipart`.
+- **No default signing key.** A shipped default is a published key.
+- **Rate limiting** per client, in a bounded LRU so the limiter cannot itself
+  be turned into a memory-exhaustion vector. Proxy headers are untrusted by
+  default.
+- **Strict input validation.** Non-finite feature values (`NaN`, `Infinity`)
+  are rejected — `NaN` compares `False` against every threshold, so one could
+  otherwise slip past every rule meant to catch it.
+- **Fails closed.** A detection error returns a 500; it is never downgraded to
+  a default approval.
+
+Report vulnerabilities via GitHub issues.
+
+---
+
+## Development
+
+```bash
+pip install -r requirements.txt -r requirements-dev.txt
+
+pytest                                    # unit + integration
+pytest --cov=app --cov=src                # with coverage
+pytest tests/performance                  # excluded from the default run
+
+ruff check app/ src/ tests/               # lint
+ruff format app/ src/ tests/              # format
+```
+
+CI runs lint, formatting, tests on Python 3.11/3.12/3.13, `pip-audit`, and a
+package build. See [.github/workflows/ci.yml](.github/workflows/ci.yml).
+
+### Layout
+
+```
+app/          FastAPI layer — routing, auth, validation, adapters
+  core/       config, security, database, cache
+  models/     Pydantic request/response schemas
+  services/   adapters wiring src/block into the API
+  utils/      rate limiting, request monitoring
+src/          Framework-free business logic
+  block/      FraudDetectionBlock + domain models
+  fraud_detection/
+              device_fingerprinting/, payment_validation/, behavioral/
+  analytics/  business metrics
+  telemetry/  Prometheus metrics
+  utils/      logging, error handling, data helpers
+tests/        unit/, integration/, performance/
+dashboard/    Streamlit + static monitoring UI
+docs/         architecture notes
+```
+
+Standalone research scripts (`Quantum_Fraud_Dectector.py`,
+`federated_learning_fraud.py`, `graph_neural_network_fraud.py`,
+`fraud_credit.py`) and the notebooks are kept for reference. Nothing imports
+them, they need the optional extras, and they are excluded from lint and CI.
+
+---
+
+## Known limitations
+
+Stated plainly rather than papered over.
+
+- **No measured accuracy.** No held-out evaluation is run in this repository,
+  so no precision/recall/AUC figures are published. The default scorer is an
+  explicitly-labelled heuristic.
+- **Placeholder integrations.** Geolocation, IP reputation, and VPN/Tor
+  detection in `attribute_collector.py` return fixed values; they are shaped
+  for a real provider but are not wired to one. Device risk is therefore driven
+  mainly by stability and behavioural signals today.
+- **In-memory user profiles and analytics.** `InMemoryUserProfileRepository`
+  and the analytics counters do not persist and are not shared across workers,
+  so behavioural history and dashboard totals reset on restart. The analytics
+  payload says so in its `source` field rather than leaving you to assume.
+- **`dashboard/app.py` is a UI demo serving random data.** It is labelled as
+  such in its title and with a banner on the page. Real numbers come from
+  `/api/v1/analytics/dashboard-data`, which `dashboard/streamlit_app.py` reads.
+- **Per-process rate limiting.** With N workers the effective limit is
+  `limit × N`. Move to Redis if that matters.
+- **Drift detection measures mean shift only.** A distribution that keeps its
+  mean but widens is not currently flagged.
+- **Weekday patterns are collected but not scored**, so a transaction on a day
+  the user never transacts is not itself a signal.
+- **No password hashing.** There is no login endpoint. The previous `passlib`
+  setup was dead code that raised on every call against modern `bcrypt`; add
+  hashing with `bcrypt` directly when an endpoint needs it.
+
+## Roadmap
+
+1. Persist user profiles behind the existing `UserProfileRepository` Protocol.
+2. Wire a real GeoIP/IP-reputation provider into `NetworkContextCollector`.
+3. Add a training pipeline that emits versioned artefacts plus an evaluation
+   report, so measured metrics can replace the heuristic honestly.
+4. Move rate limiting to Redis for correct multi-worker limits.
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md). Keep `src/` free of `app/` imports, add
+a test with behavioural changes, and make sure `ruff check` and `pytest` pass.
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+MIT — see [LICENSE](LICENSE).
 
-## Acknowledgments
+## Author
 
-- **IBM Quantum Network** for quantum computing resources
-- **NVIDIA** for GNN acceleration and GPU support
-- **Google Research** for federated learning frameworks
-- **Academic institutions** for cutting-edge research collaboration
-- **Open-source community** for foundational libraries and tools
-
-## Contact & Support
-
-- **Author**: Aaron Emmanuel Xavier Sequeira
-- **Email**: aaron.sequeira@fraud-detection.ai
-- **LinkedIn**: [Aaron Emmanuel Xavier Sequeira](https://linkedin.com/in/aaron-sequeira)
-- **GitHub Issues**: [Report Issues](https://github.com/aaronseq12/CreditCardFraudDetection/issues)
-- **Discussions**: [Community Discussions](https://github.com/aaronseq12/CreditCardFraudDetection/discussions)
-
-** Powered by 2025's most advanced AI technologies for next-generation fraud detection**
-
-** Join the revolution in financial security and fraud prevention**
+Aaron Emmanuel Xavier Sequeira —
+[github.com/aaron-seq](https://github.com/aaron-seq)
