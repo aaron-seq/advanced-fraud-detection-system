@@ -51,8 +51,7 @@ services:
       # Required in production; the app refuses to start without it.
       # Set it in a local .env file - never commit a real value.
       SECRET_KEY: ${SECRET_KEY:?set SECRET_KEY in .env before starting}
-      # asyncpg is needed for this URL: add it to requirements or use
-      # sqlite+aiosqlite for a dependency-free local run.
+      # asyncpg ships in requirements.txt, so this URL resolves at startup.
       DATABASE_URL: postgresql+asyncpg://fraud_user:${POSTGRES_PASSWORD:-fraud_password}@postgres:5432/fraud_detection
       REDIS_URL: redis://redis:6379/0
       ALLOWED_HOSTS: localhost,127.0.0.1,api
