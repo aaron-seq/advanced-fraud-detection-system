@@ -18,10 +18,14 @@ pydantic==2.11.3
 pydantic-settings==2.3.0
 python-multipart==0.0.32
 
-# Database. aiosqlite backs the default SQLite URL; greenlet is required by
-# SQLAlchemy's async engine. Add asyncpg for PostgreSQL.
+# Database. aiosqlite backs the default SQLite URL, asyncpg the PostgreSQL one
+# used by docker-compose; greenlet is required by SQLAlchemy's async engine.
+# Both drivers ship here because create_async_engine resolves the driver from
+# the URL scheme at startup - a missing one is a hard boot failure, not a
+# degraded mode.
 sqlalchemy==2.0.46
 aiosqlite==0.19.0
+asyncpg==0.30.0
 greenlet==3.3.0
 alembic==1.13.1
 
@@ -35,7 +39,13 @@ PyJWT==2.13.0
 
 # Numerics. Required by the fingerprinting and analytics helpers; joblib loads
 # trained model artefacts when MODEL_PATH contains any.
-numpy==1.26.4
+#
+# numpy 2.x is required for Python 3.13: 1.26.4 publishes no cp313 wheel, so
+# pip silently falls back to a source build - three minutes on a CI runner that
+# happens to have a compiler, and an outright failure on one that does not.
+# 2.3.x declares requires-python >=3.11, matching this project's floor, and
+# ships wheels for cp311 through cp314.
+numpy==2.3.5
 pandas==2.2.3
 joblib==1.5.2
 

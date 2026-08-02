@@ -337,13 +337,14 @@ class FraudDetectionDashboard:
                     col1, col2 = st.columns(2)
                     
                     with col1:
-                        fraud_status = "🚨 FRAUD DETECTED" if result['is_fraud'] else "✅ LEGITIMATE"
+                        fraud_status = "🚨 FRAUD DETECTED" if result["is_fraud"] else "✅ LEGITIMATE"
                         color = "red" if result['is_fraud'] else "green"
                         st.markdown(f"<h3 style='color: {color};'>{fraud_status}</h3>", unsafe_allow_html=True)
                         
                         st.metric("Fraud Probability", f"{result['fraud_probability']:.3f}")
                         st.metric("Risk Score", f"{result['risk_score']:.1f}/100")
-                        st.metric("Confidence", result['confidence_level'].title())
+                        st.metric("Risk Level", result["risk_level"].title())
+                        st.metric("Decision", result["decision"].replace("_", " ").title())
                         st.metric("Processing Time", f"{result['processing_time_ms']:.2f}ms")
                     
                     with col2:
@@ -375,7 +376,7 @@ class FraudDetectionDashboard:
         # previously hardcoded to green and stayed green while the backend was
         # down - a status light that cannot turn red is not a status light.
         st.sidebar.subheader("📊 System Status")
-        health = self.api_client.fetch_health()
+        health = self.fetch_health()
 
         if health is None:
             st.sidebar.error("🔴 API: Unreachable")
