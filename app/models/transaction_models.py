@@ -2,9 +2,9 @@
 Pydantic models for transaction data validation and API responses.
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Annotated, Any, Dict, List, Optional
+from typing import Annotated, Any
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -30,7 +30,7 @@ class TransactionType(str, Enum):
 
 
 def _utcnow() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 class TransactionRequest(BaseModel):
@@ -46,15 +46,15 @@ class TransactionRequest(BaseModel):
     currency: str = Field("USD", min_length=3, max_length=3)
     transaction_type: TransactionType
 
-    merchant_id: Optional[str] = Field(None, max_length=128)
-    merchant_category: Optional[str] = Field(None, max_length=64)
+    merchant_id: str | None = Field(None, max_length=128)
+    merchant_category: str | None = Field(None, max_length=64)
     timestamp: datetime = Field(default_factory=_utcnow)
 
-    transaction_country: Optional[str] = Field(None, max_length=64)
-    transaction_city: Optional[str] = Field(None, max_length=128)
+    transaction_country: str | None = Field(None, max_length=64)
+    transaction_city: str | None = Field(None, max_length=128)
 
-    card_type: Optional[str] = Field(None, max_length=32)
-    user_id: Optional[str] = Field(None, max_length=128)
+    card_type: str | None = Field(None, max_length=32)
+    user_id: str | None = Field(None, max_length=128)
 
     # PCA-transformed features, kept flat for compatibility with the public
     # dataset's column layout.
@@ -63,7 +63,7 @@ class TransactionRequest(BaseModel):
     # silently through arithmetic and makes a risk score NaN, which compares
     # False against every threshold - so a transaction carrying one would slip
     # past every rule meant to catch it.
-    features: Dict[str, FiniteFloat] = Field(
+    features: dict[str, FiniteFloat] = Field(
         default_factory=dict,
         description="Model features, e.g. {'V1': -1.36, 'V2': 0.07, 'Amount': 149.62}",
     )
@@ -76,7 +76,7 @@ class TransactionRequest(BaseModel):
     def to_domain(
         self,
         user_id: str,
-        device_context: Optional[Dict[str, Any]] = None,
+        device_context: dict[str, Any] | None = None,
     ) -> Transaction:
         """Convert to the domain Transaction consumed by FraudDetectionBlock."""
         location = None
@@ -111,16 +111,14 @@ class TransactionResponse(BaseModel):
     fraud_probability: float = Field(..., ge=0.0, le=1.0)
     risk_score: float = Field(..., ge=0.0, le=100.0)
     risk_level: str
-    explanation: Dict[str, Any] = Field(default_factory=dict)
-    contributing_factors: Dict[str, Any] = Field(default_factory=dict)
+    explanation: dict[str, Any] = Field(default_factory=dict)
+    contributing_factors: dict[str, Any] = Field(default_factory=dict)
     model_version: str
     processing_time_ms: float
     timestamp: datetime = Field(default_factory=_utcnow)
 
     @classmethod
-    def from_result(
-        cls, transaction_id: str, result: Dict[str, Any]
-    ) -> "TransactionResponse":
+    def from_result(cls, transaction_id: str, result: dict[str, Any]) -> "TransactionResponse":
         """Build a response from FraudDetectionResult.to_dict()."""
         return cls(
             transaction_id=transaction_id,
@@ -140,9 +138,7 @@ class BatchTransactionRequest(BaseModel):
     """A batch of transactions submitted for fraud analysis."""
 
     batch_id: str = Field(..., min_length=1, max_length=128)
-    transactions: List[TransactionRequest] = Field(
-        ..., min_length=1, max_length=MAX_BATCH_SIZE
-    )
+    transactions: list[TransactionRequest] = Field(..., min_length=1, max_length=MAX_BATCH_SIZE)
 
 
 class BatchTransactionResponse(BaseModel):
@@ -153,5 +149,5 @@ class BatchTransactionResponse(BaseModel):
     fraud_detected: int
     fraud_percentage: float
     average_risk_score: float
-    results: List[TransactionResponse]
+    results: list[TransactionResponse]
     timestamp: datetime = Field(default_factory=_utcnow)
