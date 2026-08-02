@@ -7,20 +7,20 @@ All dependencies are injected for testability.
 
 from .fraud_detection_block import FraudDetectionBlock
 from .models import (
-    Transaction,
+    Decision,
     DeviceFingerprint,
     FraudDetectionResult,
-    RiskLevel,
-    Decision,
     PaymentValidationResult,
+    RiskLevel,
+    Transaction,
 )
 
 __all__ = [
-    "FraudDetectionBlock",
-    "Transaction",
-    "DeviceFingerprint",
-    "FraudDetectionResult",
-    "RiskLevel",
     "Decision",
+    "DeviceFingerprint",
+    "FraudDetectionBlock",
+    "FraudDetectionResult",
     "PaymentValidationResult",
+    "RiskLevel",
+    "Transaction",
 ]

@@ -6,13 +6,14 @@ They are plain data classes with no external dependencies.
 """
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Any, Optional
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import Enum
+from typing import Any
 
 
 class RiskLevel(str, Enum):
     """Risk level classification."""
+
     LOW = "low"
     MEDIUM = "medium"
     HIGH = "high"
@@ -21,6 +22,7 @@ class RiskLevel(str, Enum):
 
 class Decision(str, Enum):
     """Fraud detection decision types."""
+
     APPROVE = "approve"
     DENY = "deny"
     REVIEW = "review"
@@ -29,6 +31,7 @@ class Decision(str, Enum):
 
 class AuthRequirementLevel(str, Enum):
     """Authentication requirement levels."""
+
     NONE = "none"
     OTP = "otp"
     MFA = "mfa"
@@ -39,13 +42,14 @@ class AuthRequirementLevel(str, Enum):
 @dataclass
 class DeviceAttributes:
     """Device-level attributes for fingerprinting."""
+
     user_agent: str = ""
     screen_resolution: str = ""
     timezone: str = ""
     language: str = ""
     platform: str = ""
-    cpu_cores: Optional[int] = None
-    memory_gb: Optional[float] = None
+    cpu_cores: int | None = None
+    memory_gb: float | None = None
     gpu_renderer: str = ""
     canvas_fingerprint: str = ""
     webgl_fingerprint: str = ""
@@ -57,9 +61,10 @@ class DeviceAttributes:
 @dataclass
 class NetworkAttributes:
     """Network-level attributes."""
+
     ip_address: str = ""
     ip_version: str = "4"
-    geolocation: Optional[Dict[str, Any]] = None
+    geolocation: dict[str, Any] | None = None
     isp: str = ""
     organization: str = ""
     is_vpn: bool = False
@@ -72,12 +77,13 @@ class NetworkAttributes:
 @dataclass
 class BehavioralAttributes:
     """Behavioral attributes for fingerprinting."""
-    typing_speed_wpm: Optional[float] = None
-    typing_cadence: Optional[List[float]] = None
-    mouse_speed: Optional[float] = None
-    mouse_acceleration: Optional[float] = None
-    scroll_behavior: Optional[Dict[str, Any]] = None
-    session_duration_seconds: Optional[float] = None
+
+    typing_speed_wpm: float | None = None
+    typing_cadence: list[float] | None = None
+    mouse_speed: float | None = None
+    mouse_acceleration: float | None = None
+    scroll_behavior: dict[str, Any] | None = None
+    session_duration_seconds: float | None = None
     pages_visited: int = 0
     interaction_pattern_hash: str = ""
 
@@ -86,7 +92,7 @@ class BehavioralAttributes:
 class DeviceFingerprint:
     """
     Complete device fingerprint with confidence scoring.
-    
+
     Attributes:
         id: Unique fingerprint identifier
         confidence: Confidence score (0.0 to 1.0)
@@ -99,6 +105,7 @@ class DeviceFingerprint:
         first_seen: When this fingerprint was first observed
         last_seen: When this fingerprint was last seen
     """
+
     id: str
     confidence: float
     risk_score: float
@@ -107,16 +114,16 @@ class DeviceFingerprint:
     network_attrs: NetworkAttributes = field(default_factory=NetworkAttributes)
     behavioral_attrs: BehavioralAttributes = field(default_factory=BehavioralAttributes)
     is_known_device: bool = False
-    first_seen: Optional[datetime] = None
-    last_seen: Optional[datetime] = None
-    raw_attributes: Dict[str, Any] = field(default_factory=dict)
-    
+    first_seen: datetime | None = None
+    last_seen: datetime | None = None
+    raw_attributes: dict[str, Any] = field(default_factory=dict)
+
     @property
     def attribute_count(self) -> int:
         """Count of non-empty attributes."""
         count = 0
         for attr_group in [self.device_attrs, self.network_attrs, self.behavioral_attrs]:
-            for key, value in attr_group.__dict__.items():
+            for value in attr_group.__dict__.values():
                 if value not in (None, "", [], {}):
                     count += 1
         return count
@@ -126,7 +133,7 @@ class DeviceFingerprint:
 class Transaction:
     """
     Transaction data for fraud detection.
-    
+
     Attributes:
         id: Unique transaction identifier
         user_id: User/customer identifier
@@ -140,27 +147,31 @@ class Transaction:
         device_context: Device context for fingerprinting
         features: Pre-computed ML features (V1-V28, etc.)
     """
+
     id: str
     user_id: str
     amount: float
     currency: str = "USD"
     merchant_id: str = ""
     merchant_category: str = ""
-    timestamp: datetime = field(default_factory=datetime.utcnow)
-    location: Optional[Dict[str, Any]] = None
+    # Timezone-aware. A naive default would mix with the aware timestamps the
+    # API layer supplies, and subtracting the two raises TypeError.
+    timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))
+    location: dict[str, Any] | None = None
     payment_method: str = ""
-    device_context: Dict[str, Any] = field(default_factory=dict)
-    features: Dict[str, float] = field(default_factory=dict)
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    device_context: dict[str, Any] = field(default_factory=dict)
+    features: dict[str, float] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
 class UserProfile:
     """User profile for behavioral analysis."""
+
     user_id: str
-    known_devices: List[DeviceFingerprint] = field(default_factory=list)
-    frequent_locations: List[Dict[str, Any]] = field(default_factory=list)
-    transaction_history: List[Dict[str, Any]] = field(default_factory=list)
+    known_devices: list[DeviceFingerprint] = field(default_factory=list)
+    frequent_locations: list[dict[str, Any]] = field(default_factory=list)
+    transaction_history: list[dict[str, Any]] = field(default_factory=list)
     avg_transaction_amount: float = 0.0
     transaction_frequency: float = 0.0  # per day
     risk_level: RiskLevel = RiskLevel.LOW
@@ -171,8 +182,9 @@ class UserProfile:
 @dataclass
 class AuthRequirement:
     """Authentication requirement specification."""
+
     level: AuthRequirementLevel
-    methods: List[str] = field(default_factory=list)
+    methods: list[str] = field(default_factory=list)
     timeout_seconds: int = 300
     reason: str = ""
 
@@ -180,12 +192,13 @@ class AuthRequirement:
 @dataclass
 class PaymentValidationResult:
     """Result of payment source validation."""
+
     approved: bool
     risk_score: float
-    auth_requirement: Optional[AuthRequirement] = None
-    validation_factors: Dict[str, Any] = field(default_factory=dict)
-    error: Optional[str] = None
-    
+    auth_requirement: AuthRequirement | None = None
+    validation_factors: dict[str, Any] = field(default_factory=dict)
+    error: str | None = None
+
     @classmethod
     def denied(cls, reason: str, risk_score: float = 1.0) -> "PaymentValidationResult":
         """Create a denied result."""
@@ -194,22 +207,22 @@ class PaymentValidationResult:
             risk_score=risk_score,
             error=reason,
             auth_requirement=AuthRequirement(
-                level=AuthRequirementLevel.MANUAL_REVIEW,
-                reason=reason
-            )
+                level=AuthRequirementLevel.MANUAL_REVIEW, reason=reason
+            ),
         )
 
 
 @dataclass
 class MLPrediction:
     """ML model prediction result."""
+
     model_name: str
     model_version: str
     fraud_probability: float
     confidence: float
-    features_used: List[str] = field(default_factory=list)
+    features_used: list[str] = field(default_factory=list)
     inference_time_ms: float = 0.0
-    
+
     @property
     def is_fraud(self) -> bool:
         return self.fraud_probability >= 0.5
@@ -218,20 +231,20 @@ class MLPrediction:
 @dataclass
 class ContributingFactors:
     """Factors contributing to fraud detection decision."""
-    device_fingerprint: Optional[DeviceFingerprint] = None
-    payment_validation: Optional[PaymentValidationResult] = None
-    ml_predictions: Dict[str, MLPrediction] = field(default_factory=dict)
+
+    device_fingerprint: DeviceFingerprint | None = None
+    payment_validation: PaymentValidationResult | None = None
+    ml_predictions: dict[str, MLPrediction] = field(default_factory=dict)
     behavioral_score: float = 0.0
     velocity_score: float = 0.0
-    
-    def to_dict(self) -> Dict[str, Any]:
+
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for serialization."""
         return {
             "device_risk": self.device_fingerprint.risk_score if self.device_fingerprint else 0.0,
             "payment_risk": self.payment_validation.risk_score if self.payment_validation else 0.0,
             "ml_predictions": {
-                name: pred.fraud_probability
-                for name, pred in self.ml_predictions.items()
+                name: pred.fraud_probability for name, pred in self.ml_predictions.items()
             },
             "behavioral_score": self.behavioral_score,
             "velocity_score": self.velocity_score,
@@ -242,7 +255,7 @@ class ContributingFactors:
 class FraudDetectionResult:
     """
     Complete fraud detection result.
-    
+
     Attributes:
         decision: Final decision (approve/deny/review)
         risk_score: Composite risk score (0.0 to 100.0)
@@ -253,22 +266,19 @@ class FraudDetectionResult:
         processing_time_ms: Time taken to process
         model_version: Version of the detection model used
     """
+
     decision: Decision
     risk_score: float
     risk_level: RiskLevel
     fraud_probability: float
     contributing_factors: ContributingFactors
-    explanation: Dict[str, Any] = field(default_factory=dict)
+    explanation: dict[str, Any] = field(default_factory=dict)
     processing_time_ms: float = 0.0
     model_version: str = "2.9.0"
-    request_id: Optional[str] = None
-    
+    request_id: str | None = None
+
     @classmethod
-    def from_error(
-        cls,
-        error: str,
-        request_id: Optional[str] = None
-    ) -> "FraudDetectionResult":
+    def from_error(cls, error: str, request_id: str | None = None) -> "FraudDetectionResult":
         """Create result for error case (defaults to manual review)."""
         return cls(
             decision=Decision.REVIEW,
@@ -276,11 +286,14 @@ class FraudDetectionResult:
             risk_level=RiskLevel.CRITICAL,
             fraud_probability=1.0,
             contributing_factors=ContributingFactors(),
-            explanation={"error": error, "summary": "Manual review required due to processing error"},
+            explanation={
+                "error": error,
+                "summary": "Manual review required due to processing error",
+            },
             request_id=request_id,
         )
-    
-    def to_dict(self) -> Dict[str, Any]:
+
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for API response."""
         return {
             "decision": self.decision.value,

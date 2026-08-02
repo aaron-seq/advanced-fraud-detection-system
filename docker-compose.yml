@@ -1,0 +1,73 @@
+# Local stack: the API and the two services it actually talks to.
+#
+# The previous file (docker_compose.yml, a name Compose does not auto-discover)
+# declared nine services - Kafka, Zookeeper, MLflow, Grafana, Prometheus,
+# Jupyter, MinIO - built two Dockerfiles that do not exist in this repository,
+# mounted config paths that do not exist, published port 8080 while the app
+# listens on 8000, and set environment variables the settings never read
+# (POSTGRES_HOST, KAFKA_BOOTSTRAP_SERVERS, QUANTUM_ENABLED). It could not start.
+#
+# Compose v2 infers the schema, so no "version:" key is needed.
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: fraud_detection
+      POSTGRES_USER: fraud_user
+      # Local development only. Supply via .env for anything shared.
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-fraud_password}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fraud_user -d fraud_detection"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      ENVIRONMENT: production
+      # Required in production; the app refuses to start without it.
+      # Set it in a local .env file - never commit a real value.
+      SECRET_KEY: ${SECRET_KEY:?set SECRET_KEY in .env before starting}
+      # asyncpg is needed for this URL: add it to requirements or use
+      # sqlite+aiosqlite for a dependency-free local run.
+      DATABASE_URL: postgresql+asyncpg://fraud_user:${POSTGRES_PASSWORD:-fraud_password}@postgres:5432/fraud_detection
+      REDIS_URL: redis://redis:6379/0
+      ALLOWED_HOSTS: localhost,127.0.0.1,api
+      MODEL_PATH: /app/models
+      # The API sits behind no proxy here, so forwarded headers stay untrusted.
+      TRUST_PROXY_HEADERS: "false"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./models:/app/models:ro
+      - ./logs:/app/logs
+
+volumes:
+  postgres_data:
+  redis_data:

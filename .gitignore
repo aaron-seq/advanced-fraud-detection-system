@@ -1,0 +1,62 @@
+# Byte-compiled / cache
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.benchmarks/
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+*.egg
+
+# Virtual environments
+.venv/
+venv/
+env/
+fraud_env/
+
+# Secrets and local configuration.
+# Committing .env leaks the JWT signing key and every database credential.
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Runtime artefacts
+/logs/
+*.log
+*.db
+*.sqlite3
+fraud_detection.log
+fraud_detection.db
+
+# Trained models: large binaries, rebuilt from training rather than reviewed.
+# Leading slash anchors to the repo root - an unanchored "models/" also matches
+# app/models/, which holds the Pydantic schemas.
+/models/
+*.joblib
+*.pkl
+
+# Coverage and test output
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+junit.xml
+*-output.txt
+
+# Data - the credit card dataset is large and not ours to redistribute.
+# Anchored for the same reason as /models/ above.
+/data/
+*.csv
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

@@ -1,165 +1,112 @@
 """
-Redis cache management for the fraud detection system
+Redis cache management for the fraud detection system.
 """
 
-import redis.asyncio as redis
 import json
-from typing import Any, Optional, Union
-from app.core.config import get_application_settings
 import logging
+from typing import Any
+
+import redis.asyncio as redis
+
+from app.core.config import get_application_settings
 
 logger = logging.getLogger(__name__)
 
-# Global Redis connection
-redis_client = None
+_redis_client: redis.Redis | None = None
 
-def get_redis_client():
+
+def get_redis_client() -> redis.Redis:
     """
-    Get Redis client connection
+    Return the process-wide Redis client.
+
+    ``from_url`` only builds a connection pool, it does not dial the server, so
+    wrapping it in try/except caught nothing and the in-memory fallback it
+    guarded was unreachable. Connection failures surface on first command and
+    are handled by CacheManager, which degrades to a cache miss.
     """
-    global redis_client
-    
-    if redis_client is None:
+    global _redis_client
+
+    if _redis_client is None:
         settings = get_application_settings()
-        
-        try:
-            redis_client = redis.from_url(
-                settings.redis_url,
-                encoding="utf-8",
-                decode_responses=True,
-                socket_keepalive=True,
-                socket_keepalive_options={},
-                health_check_interval=30
-            )
-            logger.info("Redis client initialized")
-        except Exception as e:
-            logger.warning(f"Redis connection failed: {e}, using mock client")
-            redis_client = MockRedisClient()
-    
-    return redis_client
+        _redis_client = redis.from_url(
+            settings.redis_url,
+            encoding="utf-8",
+            decode_responses=True,
+            socket_keepalive=True,
+            health_check_interval=30,
+        )
+        logger.info("Redis client initialized for %s", settings.redis_url)
+
+    return _redis_client
+
+
+async def close_redis_client() -> None:
+    """Close the Redis connection pool. Call during application shutdown."""
+    global _redis_client
+
+    if _redis_client is not None:
+        await _redis_client.aclose()
+        _redis_client = None
+        logger.info("Redis client closed")
+
 
 class CacheManager:
     """
-    Cache management with JSON serialization support
+    JSON-serialising cache wrapper.
+
+    Redis is treated as an optional accelerator: if it is unavailable, reads
+    report a miss and writes report failure rather than propagating, so a cache
+    outage degrades latency instead of taking fraud detection down. Failures
+    are logged, never silently swallowed.
     """
-    
-    def __init__(self, redis_client):
-        self.redis = redis_client
+
+    def __init__(self, client: redis.Redis | None = None):
+        self.redis = client or get_redis_client()
         self.settings = get_application_settings()
-    
-    async def get(self, key: str) -> Optional[Any]:
-        """
-        Get value from cache with JSON deserialization
-        """
+
+    async def get(self, key: str) -> Any | None:
+        """Return the cached value for ``key``, or None on miss or error."""
         try:
             value = await self.redis.get(key)
-            if value:
-                return json.loads(value)
+        except redis.RedisError as exc:
+            logger.warning("Cache unavailable on get(%s): %s", key, exc)
             return None
-        except Exception as e:
-            logger.error(f"Cache get error: {e}")
+
+        if value is None:
             return None
-    
-    async def set(self, key: str, value: Any, ttl: Optional[int] = None) -> bool:
-        """
-        Set value in cache with JSON serialization
-        """
+
         try:
-            ttl = ttl or self.settings.cache_ttl
-            serialized_value = json.dumps(value, default=str)
-            return await self.redis.setex(key, ttl, serialized_value)
-        except Exception as e:
-            logger.error(f"Cache set error: {e}")
+            return json.loads(value)
+        except json.JSONDecodeError:
+            logger.warning("Discarding malformed cache entry for %s", key)
+            return None
+
+    async def set(self, key: str, value: Any, ttl: int | None = None) -> bool:
+        """Store ``value`` under ``key``. Returns False if the write failed."""
+        try:
+            await self.redis.setex(
+                key, ttl or self.settings.cache_ttl, json.dumps(value, default=str)
+            )
+            return True
+        except redis.RedisError as exc:
+            logger.warning("Cache unavailable on set(%s): %s", key, exc)
             return False
-    
+        except (TypeError, ValueError) as exc:
+            logger.error("Value for %s is not JSON-serialisable: %s", key, exc)
+            return False
+
     async def delete(self, key: str) -> bool:
-        """
-        Delete key from cache
-        """
+        """Remove ``key``. Returns False if the delete failed."""
         try:
-            return await self.redis.delete(key)
-        except Exception as e:
-            logger.error(f"Cache delete error: {e}")
-            return False
-    
-    async def exists(self, key: str) -> bool:
-        """
-        Check if key exists in cache
-        """
-        try:
-            return await self.redis.exists(key)
-        except Exception as e:
-            logger.error(f"Cache exists error: {e}")
-            return False
-    
-    async def increment(self, key: str, amount: int = 1) -> int:
-        """
-        Increment counter in cache
-        """
-        try:
-            return await self.redis.incr(key, amount)
-        except Exception as e:
-            logger.error(f"Cache increment error: {e}")
-            return 0
-    
-    async def expire(self, key: str, ttl: int) -> bool:
-        """
-        Set expiration for key
-        """
-        try:
-            return await self.redis.expire(key, ttl)
-        except Exception as e:
-            logger.error(f"Cache expire error: {e}")
+            await self.redis.delete(key)
+            return True
+        except redis.RedisError as exc:
+            logger.warning("Cache unavailable on delete(%s): %s", key, exc)
             return False
 
-class MockRedisClient:
-    """
-    Mock Redis client for development/testing when Redis is not available
-    """
-    
-    def __init__(self):
-        self._data = {}
-        self._expiry = {}
-    
-    async def get(self, key: str):
-        return self._data.get(key)
-    
-    async def setex(self, key: str, ttl: int, value: str):
-        self._data[key] = value
-        return True
-    
-    async def delete(self, key: str):
-        self._data.pop(key, None)
-        return True
-    
-    async def exists(self, key: str):
-        return key in self._data
-    
-    async def incr(self, key: str, amount: int = 1):
-        current = int(self._data.get(key, 0))
-        self._data[key] = str(current + amount)
-        return current + amount
-    
-    async def expire(self, key: str, ttl: int):
-        return True
-    
-    async def ping(self):
-        return True
-    
-    async def close(self):
-        pass
-
-# Global cache manager instance
-cache_manager = None
-
-def get_cache_manager():
-    """
-    Get cache manager instance
-    """
-    global cache_manager
-    
-    if cache_manager is None:
-        redis_client = get_redis_client()
-        cache_manager = CacheManager(redis_client)
-    
-    return cache_manager
+    async def ping(self) -> bool:
+        """Report whether Redis is reachable."""
+        try:
+            return bool(await self.redis.ping())
+        except redis.RedisError:
+            return False
