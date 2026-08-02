@@ -26,8 +26,11 @@ jobs:
           python-version: "3.13"
           cache: pip
 
+      # Installed from requirements-dev.txt so CI lints with the exact
+      # version developers run; a drifting pin means "clean locally" and
+      # "clean in CI" stop meaning the same thing.
       - name: Install ruff
-        run: pip install ruff==0.8.4
+        run: pip install -r requirements-dev.txt
 
       - name: Lint
         run: ruff check app/ src/ tests/
@@ -83,7 +86,7 @@ jobs:
           cache: pip
 
       - name: Install scanners
-        run: pip install pip-audit ruff==0.8.4
+        run: pip install pip-audit ruff==0.16.0
 
       - name: Audit dependencies for known vulnerabilities
         run: pip-audit --requirement requirements.txt --strict

@@ -10,5 +10,5 @@ pytest-cov==6.0.0
 httpx==0.28.1          # required by fastapi.testclient
 
 # Linting and type checking
-ruff==0.8.4
+ruff==0.16.0
 mypy==1.14.0
