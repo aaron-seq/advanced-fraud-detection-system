@@ -66,7 +66,9 @@ setup(
         # Kafka streaming pipeline.
         "streaming": ["kafka-python>=2.0.2"],
         # Streamlit monitoring dashboard.
-        "dashboard": ["streamlit>=1.32", "plotly>=5.20"],
+        # streamlit >= 1.37 caps numpy<3 rather than <2, so it co-exists
+        # with the numpy 2.x needed for Python 3.13.
+        "dashboard": ["streamlit>=1.37", "plotly>=5.20"],
         "dev": read_requirements("requirements-dev.txt"),
     },
     # The previous console_scripts pointed at five modules, three of which

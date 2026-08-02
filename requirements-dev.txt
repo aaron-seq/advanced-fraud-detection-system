@@ -12,3 +12,14 @@ httpx==0.28.1          # required by fastapi.testclient
 # Linting and type checking
 ruff==0.16.0
 mypy==1.14.0
+
+# Dashboard extras. Required so tests/unit/test_dashboard.py actually runs in
+# CI rather than erroring on import - those tests exist because two dashboard
+# breakages shipped unnoticed and had to be caught in review. The tests skip
+# cleanly if these are absent, but then they guard nothing.
+#
+# streamlit must be >= 1.37: 1.32 caps numpy<2, which cannot co-exist with the
+# numpy 2.x required for Python 3.13 wheels.
+streamlit==1.50.0
+plotly==6.5.0
+requests==2.32.5
