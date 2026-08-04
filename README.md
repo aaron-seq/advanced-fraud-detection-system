@@ -9,9 +9,10 @@ HTTP API.
 
 > **On scores:** with no trained model present the API serves a documented
 > heuristic baseline and reports `"trained": false` from `/api/v1/health`. It
-> does not pretend a heuristic is a fitted model. No accuracy figures are
-> published here because none have been measured on a held-out dataset in this
-> repository — see [Known limitations](#known-limitations).
+> does not pretend a heuristic is a fitted model. Train real models with
+> [`scripts/train_model.py`](scripts/train_model.py) — see
+> [Training and evaluation](#training-and-evaluation) for what the numbers mean
+> and what they do not.
 
 ---
 
@@ -143,6 +144,114 @@ can see *which* dependency is down:
   "models": {"loaded": true, "active_model": "heuristic-baseline", "trained": false}
 }
 ```
+
+---
+
+## Training and evaluation
+
+`scripts/train_model.py` trains models and writes them to `MODEL_PATH`, where
+the API picks them up on its next start.
+
+```bash
+# Against the real dataset
+python scripts/train_model.py --data data/creditcard.csv --output models/
+
+# Against calibrated synthetic data, to exercise the pipeline
+python scripts/train_model.py --output models/
+```
+
+### The dataset
+
+The `V1`–`V28` schema this project scores against is the [ULB Credit Card Fraud
+Detection dataset](https://www.kaggle.com/datasets/mlg-ulb/creditcardfraud):
+284,807 real transactions from European cardholders over two days in September
+2013, of which **492 (0.172%) are fraud**. `V1`–`V28` are PCA components
+published in place of the raw fields, which is how the data can be released at
+all.
+
+That file is not redistributable and is **not in this repository**. Download it
+and pass `--data`. Without it the pipeline generates data calibrated to the
+dataset's *published* statistics — the same fraud rate, 48-hour span and ~$88
+mean amount — so the pipeline can be exercised and tested. **Every report
+records which source it used**, and `is_real_data` is in the payload:
+
+```json
+"data": { "source": "synthetic-calibrated", "is_real_data": false,
+          "rows": 284807, "fraud_rows": 492, "fraud_rate": 0.001727 }
+```
+
+Synthetic results demonstrate that the pipeline works. They are not evidence of
+real-world accuracy, and nothing in this repo reports them as such.
+
+### Methodology
+
+Two choices do most of the work, and getting either wrong produces impressive
+numbers that do not survive deployment.
+
+**Forward-in-time splits.** Transactions are ordered and fraud patterns drift,
+so a random split trains the model on transactions that happened *after* the
+ones it is scored on — information it will never have in production. Every
+validation row here happens after every training row, and every test row after
+those. `temporal_split` asserts it rather than assuming it.
+
+**Preprocessing fitted on training rows only.** Fitting a scaler on the full
+dataset folds the test set's distribution into training; oversampling before
+splitting is worse, because copies of the same fraud land on both sides and the
+model is scored on rows it memorised. This is [the most common flaw in
+published fraud results](https://arxiv.org/html/2506.02703v1), and it is
+invisible in the output — so two tests assert the scaler saw training rows only,
+and both fail if the fit is widened.
+
+The rare class is handled with class weights rather than synthetic oversampling:
+no invented rows, no risk of duplicates spanning a split, and nothing extra to
+install.
+
+### Metrics
+
+**Accuracy is not reported.** At a 0.172% fraud rate, predicting "legitimate"
+for everything scores 99.83% and catches nothing — the number actively rewards
+the failure being guarded against.
+
+Average precision (PR-AUC) is the headline. ROC-AUC appears beside it only for
+comparability with published work, because under heavy imbalance it flatters:
+the same model can show [ROC-AUC 0.957 against PR-AUC
+0.708](https://machinelearningmastery.com/roc-auc-vs-precision-recall-for-imbalanced-data/).
+A random scorer's average precision equals the fraud rate, so every score is
+reported next to that floor.
+
+Also emitted per model:
+
+| Metric | Question it answers |
+|---|---|
+| `recall_at_precision` | If I tolerate 1 false alarm in N, how much fraud do I catch? |
+| `precision_at_recall` | To catch 75% of fraud, how many alerts must be reviewed? |
+| `cost.net_savings` | Amount-weighted: is this model worth running at all? |
+
+The cost model weights each fraud by its amount, because counting cases treats
+a $2 card test and a $2,000 cash-out alike. `net_savings` can be negative — a
+model that alerts on everything catches all fraud and still loses money, which
+recall alone would hide.
+
+### A worked run
+
+Full-scale run on **calibrated synthetic data** (284,807 rows, 492 fraud),
+forward-in-time split, threshold chosen on validation and applied unchanged to
+test:
+
+| Model | AP | ROC-AUC | Precision | Recall | Net savings |
+|---|---|---|---|---|---|
+| logistic_regression | **0.796** | 0.889 | 0.309 | 0.808 | $6,733 |
+| gradient_boosting | 0.796 | 0.894 | 0.286 | 0.798 | $6,554 |
+| random_forest | 0.780 | 0.887 | 0.506 | 0.788 | $6,768 |
+
+Random-baseline AP is **0.00174**, so 0.796 is a ~458× lift. Note the shape of
+the two columns: ROC-AUC 0.89 reads as unremarkable while the PR-AUC shows real
+skill on the rare class — the exact gap that makes ROC-AUC the wrong headline
+here.
+
+**These numbers describe a generated problem.** They show the pipeline is
+correct and the metrics are wired up. Run with `--data` to measure anything
+about real fraud.
 
 ---
 

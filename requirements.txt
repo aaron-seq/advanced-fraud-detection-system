@@ -49,6 +49,11 @@ numpy==2.3.5
 pandas==2.2.3
 joblib==1.5.2
 
+# Required at runtime, not just for training: the trained artefacts in
+# MODEL_PATH are pickled scikit-learn objects, so deserialising one needs the
+# library present. Without it the API can only serve the heuristic.
+scikit-learn==1.7.2
+
 # Observability
 prometheus-client==0.19.0
 structlog==23.2.0

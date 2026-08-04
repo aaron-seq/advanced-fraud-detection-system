@@ -12,6 +12,7 @@ actively misleading, so that path is gone.
 """
 
 import asyncio
+import json
 import logging
 from pathlib import Path
 from typing import Any
@@ -103,23 +104,44 @@ class HeuristicMLModel:
 
 
 class JoblibEnsembleModel:
-    """Serves predictions from trained models persisted as joblib artefacts."""
+    """
+    Serves predictions from trained models persisted as joblib artefacts.
 
-    def __init__(self, models: dict[str, Any], feature_names: list[str]):
+    The scaler is applied here, not optional. Training standardises features
+    before fitting, so serving a raw row to a model fitted on scaled input
+    produces a confidently wrong probability rather than an error - the worst
+    kind of failure for a fraud score, because nothing surfaces it.
+    """
+
+    def __init__(
+        self,
+        models: dict[str, Any],
+        feature_names: list[str],
+        scaler: Any = None,
+        version: str = "unknown",
+    ):
         self._models = models
         self._feature_names = feature_names
+        self._scaler = scaler
+        self._version = version
 
     def predict(self, features: dict[str, float]) -> dict[str, MLPrediction]:
         import numpy as np
 
+        # Column order comes from feature_names.joblib. Reconstructing a row
+        # from a dict in any other order would silently score the wrong values
+        # into the wrong coefficients.
         row = np.array([[features.get(name, 0.0) for name in self._feature_names]])
+
+        if self._scaler is not None:
+            row = self._scaler.transform(row)
 
         predictions = {}
         for name, model in self._models.items():
             probability = float(model.predict_proba(row)[0][1])
             predictions[name] = MLPrediction(
                 model_name=name,
-                model_version=getattr(model, "_version", "unknown"),
+                model_version=self._version,
                 fraud_probability=probability,
                 confidence=0.9,
                 features_used=self._feature_names,
@@ -206,13 +228,30 @@ class FraudDetectionService:
         # user-writable or user-uploaded directory.
         import joblib
 
+        # feature_names and scaler are sidecars, not models. Loading either
+        # into the ensemble would call predict_proba on a StandardScaler.
         models = {}
         feature_names: list[str] = []
-        for artefact in artefacts:
-            if artefact.stem == "feature_names":
-                feature_names = joblib.load(artefact)
-                continue
-            models[artefact.stem] = joblib.load(artefact)
+        scaler = None
+        try:
+            for artefact in artefacts:
+                if artefact.stem == "feature_names":
+                    feature_names = joblib.load(artefact)
+                elif artefact.stem == "scaler":
+                    scaler = joblib.load(artefact)
+                else:
+                    models[artefact.stem] = joblib.load(artefact)
+        except Exception:
+            # Unpickling needs the libraries the artefact was built with, and
+            # a stale or truncated file raises here too. Degrading to the
+            # heuristic keeps the service up; crashing on startup would take
+            # fraud detection down entirely over a bad file on disk.
+            logger.exception(
+                "Failed to load artefacts from %s; falling back to the %s scorer",
+                directory,
+                HEURISTIC_MODEL_NAME,
+            )
+            return HeuristicMLModel()
 
         if not models or not feature_names:
             logger.warning(
@@ -225,8 +264,46 @@ class FraudDetectionService:
             )
             return HeuristicMLModel()
 
-        logger.info("Loaded %d trained models from %s", len(models), directory)
-        return JoblibEnsembleModel(models, feature_names)
+        if scaler is None:
+            # Refuse rather than serve unscaled input to models fitted on
+            # scaled features: the resulting scores look valid and are not.
+            logger.error(
+                "Model directory %s has models but no scaler.joblib. Serving "
+                "unscaled features would produce silently wrong probabilities, "
+                "so the %s scorer is used instead.",
+                directory,
+                HEURISTIC_MODEL_NAME,
+            )
+            return HeuristicMLModel()
+
+        version = FraudDetectionService._artefact_version(directory)
+        logger.info(
+            "Loaded %d trained models (version %s) from %s",
+            len(models),
+            version,
+            directory,
+        )
+        return JoblibEnsembleModel(models, feature_names, scaler, version)
+
+    @staticmethod
+    def _artefact_version(directory: Path) -> str:
+        """
+        Read the training timestamp from metrics.json, if the pipeline wrote it.
+
+        Reporting which artefact produced a score is what makes a bad model
+        traceable back to the run that trained it.
+        """
+        metrics = directory / "metrics.json"
+        if not metrics.is_file():
+            return "unknown"
+
+        try:
+            report = json.loads(metrics.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            logger.warning("Could not read %s: %s", metrics, exc)
+            return "unknown"
+
+        return str(report.get("trained_at", "unknown"))
 
     def model_health(self) -> dict[str, Any]:
         """Report which scorer is active and whether it is a trained model."""
