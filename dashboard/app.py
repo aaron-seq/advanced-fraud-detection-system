@@ -14,20 +14,23 @@ For real numbers use GET /api/v1/analytics/dashboard-data, or the Streamlit app
 in dashboard/streamlit_app.py which reads it.
 """
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request
+import asyncio
+import logging
+import random
+from datetime import UTC, datetime
+from typing import Any
+
+from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
+from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from fastapi.responses import HTMLResponse
-from typing import List, Dict, Any
-import asyncio
-import json
-import random
-from datetime import datetime
+
+logger = logging.getLogger(__name__)
 
 app = FastAPI(
     title="Fraud Detection Dashboard (DEMO - synthetic data)",
     description="UI demo. All figures are randomly generated and reflect no real system.",
-    version="2.9.0"
+    version="2.9.0",
 )
 
 # Mount static files
@@ -39,23 +42,42 @@ templates = Jinja2Templates(directory="dashboard/templates")
 
 class ConnectionManager:
     """Manages WebSocket connections for real-time updates."""
-    
+
     def __init__(self):
-        self.active_connections: List[WebSocket] = []
-    
+        self.active_connections: list[WebSocket] = []
+
     async def connect(self, websocket: WebSocket):
         await websocket.accept()
         self.active_connections.append(websocket)
-    
+
     def disconnect(self, websocket: WebSocket):
-        self.active_connections.remove(websocket)
-    
-    async def broadcast(self, message: Dict[str, Any]):
-        for connection in self.active_connections:
+        """
+        Drop a connection, tolerating one that is already gone.
+
+        ``list.remove`` raises ValueError on a connection broadcast has already
+        pruned, and this runs from the socket's own disconnect handler, so the
+        double removal is the normal path rather than an edge case.
+        """
+        if websocket in self.active_connections:
+            self.active_connections.remove(websocket)
+
+    async def broadcast(self, message: dict[str, Any]):
+        """
+        Send to every live connection, dropping the ones that fail.
+
+        This used to be a bare ``except: pass``, which swallowed everything
+        including CancelledError and - because a failed send left the dead
+        connection in the list - retried the same broken socket on every
+        subsequent tick, so the list only ever grew.
+
+        Iterates a copy: a send failure mutates the list being walked.
+        """
+        for connection in list(self.active_connections):
             try:
                 await connection.send_json(message)
-            except:
-                pass
+            except (WebSocketDisconnect, RuntimeError) as exc:
+                logger.info("Dropping a closed dashboard connection: %s", exc)
+                self.disconnect(connection)
 
 
 manager = ConnectionManager()
@@ -63,8 +85,15 @@ manager = ConnectionManager()
 
 @app.get("/", response_class=HTMLResponse)
 async def dashboard_home(request: Request):
-    """Render the main dashboard page."""
-    return templates.TemplateResponse("index.html", {"request": request})
+    """
+    Render the main dashboard page.
+
+    ``request`` is passed positionally first: Starlette removed the
+    ``TemplateResponse(name, {"request": ...})`` form, and against the pinned
+    1.3.1 the old call raised ``TypeError: unhashable type: 'dict'`` on every
+    page load - the template name was being bound to the request parameter.
+    """
+    return templates.TemplateResponse(request, "index.html")
 
 
 @app.get("/api/stats/realtime")
@@ -72,7 +101,7 @@ async def get_realtime_stats():
     """Get real-time fraud detection statistics."""
     # In production, this would come from the analytics module
     return {
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
         "transactions_per_second": random.randint(80, 120),
         "fraud_detected": random.randint(1, 5),
         "avg_latency_ms": round(random.uniform(0.3, 0.8), 2),
@@ -158,7 +187,7 @@ async def websocket_transactions(websocket: WebSocket):
             # Simulate real-time transaction data
             transaction = {
                 "id": f"txn_{random.randint(100000, 999999)}",
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
                 "amount": round(random.uniform(10, 5000), 2),
                 "risk_score": round(random.uniform(0, 100), 1),
                 "risk_level": random.choice(["low", "low", "low", "medium", "high"]),
@@ -174,4 +203,8 @@ async def websocket_transactions(websocket: WebSocket):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8080)
+
+    # Loopback, not 0.0.0.0: this serves invented figures, and the one thing
+    # worse than a fake dashboard is a fake dashboard reachable from the
+    # network by someone who does not know it is fake.
+    uvicorn.run(app, host="127.0.0.1", port=8080)

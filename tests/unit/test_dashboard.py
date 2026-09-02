@@ -217,5 +217,99 @@ class TestDemoDashboardIsLabelled:
         assert "synthetic" in inspect.getdoc(demo).lower()
 
 
+class TestDemoDashboardServes:
+    """
+    The demo's pages must actually render.
+
+    Nothing exercised them, so the home page raised
+    `TypeError: unhashable type: 'dict'` on every single load: it called
+    `TemplateResponse("index.html", {"request": request})`, the pre-0.29
+    argument order that Starlette removed, and the pinned 1.3.1 bound the
+    template name to the `request` parameter. Labelling checks above all
+    passed while the page itself was dead, because they read the source
+    rather than calling it.
+    """
+
+    @pytest.fixture(scope="class")
+    def client(self):
+        from fastapi.testclient import TestClient
+
+        import dashboard.app as demo
+
+        return TestClient(demo.app)
+
+    def test_the_home_page_renders(self, client):
+        response = client.get("/")
+
+        assert response.status_code == 200
+        assert "DEMO" in response.text
+
+    @pytest.mark.parametrize(
+        "endpoint",
+        ["/api/stats/realtime", "/api/stats/model-performance", "/api/stats/geographic"],
+    )
+    def test_each_stats_endpoint_responds(self, client, endpoint):
+        assert client.get(endpoint).status_code == 200
+
+    def test_timestamps_carry_an_offset(self, client):
+        """
+        `utcnow()` returned a naive datetime, so `isoformat()` emitted no
+        offset and the browser read UTC as local time.
+        """
+        from datetime import datetime
+
+        timestamp = client.get("/api/stats/realtime").json()["timestamp"]
+
+        assert datetime.fromisoformat(timestamp).tzinfo is not None
+
+
+class TestBroadcastPrunesDeadConnections:
+    """
+    A failed send used to hit `except: pass`, leaving the dead socket in the
+    list to be retried on every subsequent tick - so the list only ever grew.
+    """
+
+    @pytest.mark.asyncio
+    async def test_a_failing_connection_is_dropped(self):
+        import dashboard.app as demo
+
+        class DeadSocket:
+            async def send_json(self, message):
+                raise RuntimeError("socket closed")
+
+        class LiveSocket:
+            def __init__(self):
+                self.received = []
+
+            async def send_json(self, message):
+                self.received.append(message)
+
+        manager = demo.ConnectionManager()
+        live = LiveSocket()
+        manager.active_connections = [DeadSocket(), live]
+
+        await manager.broadcast({"tick": 1})
+
+        assert manager.active_connections == [live], "the dead socket was not pruned"
+        assert live.received == [{"tick": 1}], "a dead peer blocked delivery to a live one"
+
+    @pytest.mark.asyncio
+    async def test_disconnecting_twice_does_not_raise(self):
+        """
+        `list.remove` raises ValueError on an already-pruned connection, and
+        the socket's own disconnect handler runs after broadcast has pruned it.
+        """
+        import dashboard.app as demo
+
+        manager = demo.ConnectionManager()
+        socket = object()
+        manager.active_connections = [socket]
+
+        manager.disconnect(socket)
+        manager.disconnect(socket)
+
+        assert manager.active_connections == []
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

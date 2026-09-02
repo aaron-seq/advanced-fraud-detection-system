@@ -32,11 +32,16 @@ jobs:
       - name: Install ruff
         run: pip install -r requirements-dev.txt
 
+      # dashboard/ and scripts/ are linted too. They were excluded, and the
+      # gap hid a dead page: dashboard/app.py called TemplateResponse with the
+      # pre-0.29 argument order, so every load of the demo home page raised
+      # TypeError. Shipped code that is never linted is shipped code nobody
+      # checks.
       - name: Lint
-        run: ruff check app/ src/ tests/
+        run: ruff check app/ src/ tests/ dashboard/ scripts/
 
       - name: Check formatting
-        run: ruff format --check app/ src/ tests/
+        run: ruff format --check app/ src/ tests/ dashboard/ scripts/
 
   test:
     name: Test (Python ${{ matrix.python-version }})
@@ -95,7 +100,7 @@ jobs:
         run: pip-audit --requirement requirements.txt --strict
 
       - name: Static security checks
-        run: ruff check --select S app/ src/
+        run: ruff check --select S app/ src/ dashboard/ scripts/
 
   build:
     name: Package build
