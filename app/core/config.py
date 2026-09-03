@@ -19,6 +19,15 @@ logger = logging.getLogger(__name__)
 
 Environment = Literal["development", "testing", "production"]
 
+# Shortest signing key accepted, in characters.
+#
+# HS256 is HMAC-SHA256, so a key shorter than the 32-byte hash output adds no
+# entropy the algorithm can use, and a short one is brute-forceable offline:
+# recovering it lets anyone mint a token for any account. PyJWT raises
+# InsecureKeyLengthWarning below this same threshold (RFC 7518 section 3.2);
+# this turns that warning into a refusal to start.
+MINIMUM_SECRET_KEY_LENGTH = 32
+
 
 class ApplicationSettings(BaseSettings):
     """
@@ -105,23 +114,39 @@ class ApplicationSettings(BaseSettings):
         return value
 
     @model_validator(mode="after")
-    def _require_secret_key_in_production(self) -> "ApplicationSettings":
-        if self.secret_key:
+    def _require_a_strong_secret_key(self) -> "ApplicationSettings":
+        """
+        Enforce that the signing key both exists and is long enough to be safe.
+
+        Presence used to be the whole check, which let ``SECRET_KEY=x`` start a
+        production process: the token signature was then guessable offline, so
+        the auth layer looked enforced while being trivially forgeable. Length
+        is validated in every environment, not just production, because a key
+        weak enough to forge tokens is a defect wherever it is set - and a
+        development value is exactly how a weak key reaches production.
+        """
+        generate = 'Generate one with: python -c "import secrets; print(secrets.token_urlsafe(32))"'
+
+        if not self.secret_key:
+            if self.environment == "production":
+                raise ValueError(f"SECRET_KEY must be set when ENVIRONMENT=production. {generate}")
+
+            self.secret_key = secrets.token_urlsafe(MINIMUM_SECRET_KEY_LENGTH)
+            logger.warning(
+                "SECRET_KEY is not set; generated an ephemeral key for the %s "
+                "environment. Tokens will be invalidated on restart.",
+                self.environment,
+            )
             return self
 
-        if self.environment == "production":
+        if len(self.secret_key) < MINIMUM_SECRET_KEY_LENGTH:
             raise ValueError(
-                "SECRET_KEY must be set when ENVIRONMENT=production. "
-                'Generate one with: python -c "import secrets; '
-                'print(secrets.token_urlsafe(32))"'
+                f"SECRET_KEY must be at least {MINIMUM_SECRET_KEY_LENGTH} "
+                f"characters; got {len(self.secret_key)}. A shorter key can be "
+                f"recovered offline, which lets anyone mint a valid token for "
+                f"any account. {generate}"
             )
 
-        self.secret_key = secrets.token_urlsafe(32)
-        logger.warning(
-            "SECRET_KEY is not set; generated an ephemeral key for the %s "
-            "environment. Tokens will be invalidated on restart.",
-            self.environment,
-        )
         return self
 
     @model_validator(mode="after")

@@ -32,11 +32,16 @@ jobs:
       - name: Install ruff
         run: pip install -r requirements-dev.txt
 
+      # dashboard/ and scripts/ are linted too. They were excluded, and the
+      # gap hid a dead page: dashboard/app.py called TemplateResponse with the
+      # pre-0.29 argument order, so every load of the demo home page raised
+      # TypeError. Shipped code that is never linted is shipped code nobody
+      # checks.
       - name: Lint
-        run: ruff check app/ src/ tests/
+        run: ruff check app/ src/ tests/ dashboard/ scripts/
 
       - name: Check formatting
-        run: ruff format --check app/ src/ tests/
+        run: ruff format --check app/ src/ tests/ dashboard/ scripts/
 
   test:
     name: Test (Python ${{ matrix.python-version }})
@@ -61,10 +66,13 @@ jobs:
 
       - name: Run tests
         # SECRET_KEY is set explicitly so the run does not depend on the
-        # ephemeral development key.
+        # ephemeral development key. It must clear the 32-character floor the
+        # settings validator enforces - the previous value was 31 and started
+        # failing collection once that check existed, which is the check doing
+        # its job on the first key it was pointed at.
         env:
           ENVIRONMENT: testing
-          SECRET_KEY: ci-test-key-not-used-outside-ci
+          SECRET_KEY: ci-test-key-not-used-outside-ci-0123456789
         run: pytest --cov=app --cov=src --cov-report=term-missing --cov-report=xml
 
       - name: Upload coverage
@@ -92,7 +100,7 @@ jobs:
         run: pip-audit --requirement requirements.txt --strict
 
       - name: Static security checks
-        run: ruff check --select S app/ src/
+        run: ruff check --select S app/ src/ dashboard/ scripts/
 
   build:
     name: Package build

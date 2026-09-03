@@ -55,5 +55,15 @@ ignore = [
 # DTZ001: naive datetimes are constructed deliberately to test coercion.
 "tests/**" = ["S101", "S105", "S106", "SLF001", "S311", "DTZ001"]
 
+# The demo dashboard's whole purpose is generating synthetic figures, so
+# `random` is the feature rather than a weak-crypto mistake. Its module
+# docstring and page banner both say the data is invented.
+"dashboard/app.py" = ["S311"]
+
+# Plotly's own API is written as dict(color=..., width=...) throughout its
+# documentation; rewriting those to literals is churn against the idiom every
+# Plotly example uses.
+"dashboard/streamlit_app.py" = ["C408"]
+
 [format]
 quote-style = "double"
